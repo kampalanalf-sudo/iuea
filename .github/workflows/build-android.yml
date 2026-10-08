@@ -41,13 +41,20 @@ jobs:
       - name: Capacitor sync (copy web assets into android shell)
         run: npx cap sync android
 
-      - name: Build debug APK with Gradle (with failure diagnostics)
+      - name: Build debug APK with Gradle (JDK 21, with failure diagnostics)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set +e
-          export JAVA_HOME="${JAVA_HOME_17_X64:-$JAVA_HOME}"
+          export JAVA_HOME="${JAVA_HOME_21_X64:-$JAVA_HOME}"
           export PATH="$JAVA_HOME/bin:$PATH"
+          if ! java -version 2>&1 | grep -qE 'version "(2[1-9]|[3-9][0-9])'; then
+            echo "JDK 21 not present — installing temurin-21-jdk"
+            sudo apt-get update -y > /dev/null
+            sudo apt-get install -y temurin-21-jdk > /dev/null
+            export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
+            export PATH="$JAVA_HOME/bin:$PATH"
+          fi
           echo "JAVA_HOME=$JAVA_HOME"; java -version
           SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
           if [ -z "$SDK" ] || [ ! -d "$SDK" ]; then
