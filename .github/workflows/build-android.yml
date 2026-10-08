@@ -157,3 +157,17 @@ jobs:
           print("APK published to branch:", branch)
           PY
           echo "Fetch via: https://codeload.github.com/${REPO}/tar.gz/refs/heads/apk-artifact"
+      - name: Attach APK to latest-apk release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          cp "$APK" ProxiCore-POINT-debug.apk
+          if ! gh release view latest-apk > /dev/null 2>&1; then
+            gh release create latest-apk --title "ProxiCore POINT — latest debug APK" \
+              --notes "Refreshed automatically by CI on every successful build."
+          fi
+          gh release upload latest-apk ProxiCore-POINT-debug.apk --clobber
+          echo "APK asset attached to release latest-apk"
