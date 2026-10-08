@@ -85,12 +85,11 @@ jobs:
               ls "$SDK/platforms" 2>/dev/null
               ls "$SDK/build-tools" 2>/dev/null
             } > ci-debug.txt
-            git config user.name "arena-ci"
-            git config user.email "arena-ci@users.noreply.github.com"
-            git add -f ci-debug.txt
-            git commit -m "CI: gradle failure diagnostics [skip ci]" > /dev/null 2>&1
-            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:ci-debug --force
-            echo "diag push rc=$?"
+            gh release delete ci-debug --yes --cleanup-tag > /dev/null 2>&1
+            gh release create ci-debug ci-debug.txt \
+              --title "CI diagnostics (gradle failed)" \
+              --notes "Gradle failed (exit $STATUS) — run ${{ github.run_id }}, sha ${{ github.sha }}"
+            echo "diag release rc=$?"
             exit "$STATUS"
           fi
           set -e
@@ -109,16 +108,17 @@ jobs:
             --notes "Built from ${{ github.sha }} by run ${{ github.run_id }} on $(date -u +%Y-%m-%dT%H:%M:%SZ). Debug-signed; install over any previous build."
           echo "Published to release latest-apk"
 
-      - name: Fallback — commit APK to branch (only if release failed)
+      - name: Fallback — publish APK as alternate release (only if primary failed)
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set +e
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           if [ -f "$APK" ]; then
-            git config user.name "arena-ci"
-            git config user.email "arena-ci@users.noreply.github.com"
-            git add -f "$APK"
-            git commit -m "CI: publish app-debug.apk artifact [skip ci]" || echo "nothing to commit"
-            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:apk-artifact --force || true
+            cp "$APK" ProxiCore-POINT-debug.apk
+            gh release delete apk-fallback --yes --cleanup-tag > /dev/null 2>&1
+            gh release create apk-fallback ProxiCore-POINT-debug.apk \
+              --title "ProxiCore POINT — debug APK (fallback)" \
+              --notes "Run ${{ github.run_id }}, sha ${{ github.sha }}"
           fi
