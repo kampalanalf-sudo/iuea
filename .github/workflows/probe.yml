@@ -1,0 +1,32 @@
+name: Probe write access
+
+on:
+  push:
+    branches: ["arena/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Probe token write access
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" . 2>&1 | tail -1
+          git checkout "${{ github.sha }}" 2>&1 | tail -1
+          git config user.name probe
+          git config user.email probe@ci
+          echo probe > probe-marker.txt
+          git add probe-marker.txt
+          git commit -m "probe" >/dev/null 2>&1
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:write-probe --force > /tmp/push.log 2>&1
+          PUSH_RC=$?
+          gh release create probe-release-000 README.md --title probe --notes probe > /tmp/rel.log 2>&1
+          REL_RC=$?
+          echo "PUSH_RC=$PUSH_RC REL_RC=$REL_RC"
+          tail -3 /tmp/push.log
+          tail -3 /tmp/rel.log
