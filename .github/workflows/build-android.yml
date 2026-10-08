@@ -3,26 +3,34 @@ name: Build Android APK
 on:
   push:
     branches: ["main", "arena/**"]
-  pull_request:
-    branches: ["main"]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" .
+          git checkout "${{ github.sha }}"
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+      - name: Ensure Node 20.19+
+        run: |
+          node --version
+          NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
+          NODE_MINOR=$(node -p 'process.versions.node.split(".")[1]')
+          if [ "$NODE_MAJOR" -lt 20 ] || { [ "$NODE_MAJOR" -eq 20 ] && [ "$NODE_MINOR" -lt 19 ]; }; then
+            echo "Runner Node too old — installing Node 22 LTS"
+            curl -fsSL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz -o /tmp/node.tar.xz
+            mkdir -p /tmp/node22
+            tar -xJf /tmp/node.tar.xz -C /tmp/node22 --strip-components=1
+            echo "/tmp/node22/bin" >> "$GITHUB_PATH"
+          fi
 
       - name: Install web dependencies
         run: npm ci
@@ -33,16 +41,47 @@ jobs:
       - name: Capacitor sync (copy web assets into android shell)
         run: npx cap sync android
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x android/gradlew
+      - name: Prepare Java 17 + Android SDK platform
+        run: |
+          export JAVA_HOME="${JAVA_HOME_17_X64:-$JAVA_HOME}"
+          java -version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" > /dev/null 2>&1 || true
+          fi
 
-      - name: Build debug APK
-        run: cd android && ./gradlew assembleDebug --no-daemon
+      - name: Build debug APK with Gradle
+        run: |
+          export JAVA_HOME="${JAVA_HOME_17_X64:-$JAVA_HOME}"
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 30
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          cp "$APK" ProxiCore-POINT-debug.apk
+          gh release delete latest-apk --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest-apk ProxiCore-POINT-debug.apk \
+            --title "ProxiCore POINT — latest debug APK" \
+            --notes "Built from ${{ github.sha }} by run ${{ github.run_id }} on $(date -u +%Y-%m-%dT%H:%M:%SZ). Debug-signed; install over any previous build."
+          echo "Published to release latest-apk"
+
+      - name: Fallback — commit APK to branch (only if release failed)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          if [ -f "$APK" ]; then
+            git config user.name "arena-ci"
+            git config user.email "arena-ci@users.noreply.github.com"
+            git add -f "$APK"
+            git commit -m "CI: publish app-debug.apk artifact [skip ci]" || echo "nothing to commit"
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:apk-artifact --force || true
+          fi
