@@ -13,7 +13,7 @@ const MATRIX: Array<[string, string, string, string]> = [
   ['Background scanning', 'No', 'Yes (foreground service)', 'No'],
   ['iBeacon / Eddystone parse', 'Yes', 'Yes', 'Yes'],
   ['Distance model', 'RSSI path-loss', 'RSSI path-loss + calibration', 'RSSI path-loss'],
-  ['Bearing source', 'Imported only', 'Fused compass + imports', 'Imported only'],
+  ['Bearing source', 'Compass + imports', 'Fused compass + imports', 'Compass + imports'],
   ['GPS', 'Browser geolocation', 'Fused location (high accuracy)', 'OS geolocation'],
   ['Offline use', 'Yes (local-first)', 'Yes (local-first)', 'Yes (local-first)'],
   ['Install', 'HTTPS URL', 'APK sideload / store', 'Setup EXE'],

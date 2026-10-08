@@ -82,6 +82,24 @@ export function SettingsView() {
           </Field>
         </Panel>
 
+        <Panel title="Bearing">
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 accent-emerald-500"
+              checked={s.settings.captureBearing}
+              onChange={(e) => updateSettings({ captureBearing: e.target.checked })}
+            />
+            <span>
+              <span className="block font-mono text-xs font-bold text-slate-200">Capture live bearing from device compass</span>
+              <span className="mt-0.5 block text-[11px] text-slate-500">
+                Tags each live advert with the heading this console was pointing at the moment of sighting. Sweep the phone
+                toward a target to place it on the radar. Not AoA — ordinary BLE cannot measure direction by itself.
+              </span>
+            </span>
+          </label>
+        </Panel>
+
         <Panel title="RF model">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Path-loss exponent N" hint="2 = free space, 2.7–3 indoors">

@@ -7,6 +7,7 @@ import { scanner } from './ble';
 import { mergeObservation, workspaceFingerprint } from './ledger';
 import { getFix, startGeoWatch, stopGeoWatch } from './geo';
 import { isConfigured, pullWorkspaces, pushWorkspace, subscribeRealtime, testConnection } from './supabase';
+import { getHeading, startHeadingWatch } from './heading';
 import { uid } from './util';
 
 export type CloudState = 'off' | 'idle' | 'syncing' | 'ok' | 'error';
@@ -111,11 +112,19 @@ const MAX_OBS = 5000;
 
 function ingest(partial: Omit<Observation, 'id' | 'ts' | 'source'>, source: ObsSource): void {
   const fix = getFix();
+  // Live bearing = device compass heading at the moment of sighting
+  // (source = operator's fused compass; ordinary BLE has no AoA).
+  let bearing = partial.bearing;
+  if (source === 'live' && bearing === undefined && state.settings.captureBearing) {
+    const h = getHeading();
+    if (h !== null) bearing = Math.round(h);
+  }
   const o: Observation = {
     ...partial,
     id: uid(),
     ts: Date.now(),
     source,
+    bearing,
     lat: partial.lat ?? fix?.lat,
     lon: partial.lon ?? fix?.lon,
   };
@@ -151,6 +160,7 @@ export async function startScan(): Promise<void> {
   if (state.scanning) return;
   set({ scanning: true, scanError: null });
   void startGeoWatch();
+  startHeadingWatch();
   try {
     await scanner.start((partial) => ingest(partial, 'live'));
   } catch (e) {

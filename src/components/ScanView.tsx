@@ -6,6 +6,7 @@ import { sortIdentities, avgRssi } from '@/lib/ledger';
 import { SHELL, SHELL_LABEL } from '@/lib/shell';
 import { fmtAgo, fmtDist, fmtTime } from '@/lib/util';
 import { Btn, Empty, Panel, Stat } from './ui';
+import { RadarView } from './RadarView';
 
 export function ScanView() {
   const s = useApp();
@@ -25,7 +26,9 @@ export function ScanView() {
   const top = sortIdentities(Object.values(s.identities)).slice(0, 8);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+    <div className="space-y-4">
+      <RadarView />
+      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <div className="space-y-4">
         <Panel title="Production radar — no simulated devices">
           <div className="flex flex-wrap items-center gap-3">
@@ -121,6 +124,7 @@ export function ScanView() {
           </ul>
         )}
       </Panel>
+      </div>
     </div>
   );
 }

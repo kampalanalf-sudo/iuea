@@ -87,7 +87,7 @@ export function MapView() {
     let centered = false;
     for (const p of points) {
       const color = p.rotating ? '#f59e0b' : '#10b981';
-      const m = L.circleMarker([p.lat, p.lon], {
+      L.circleMarker([p.lat, p.lon], {
         radius: Math.min(11, 5 + Math.log2(1 + p.count)),
         color,
         weight: 2,

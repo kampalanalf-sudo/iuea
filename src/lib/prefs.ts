@@ -12,6 +12,7 @@ export interface Settings {
   pathLossN: number; // path-loss exponent
   measuredPower: number; // dBm at 1 m when no calibrated TX power
   sessionId: string; // this console's stable id
+  captureBearing: boolean; // tag live adverts with device compass heading
 }
 
 const KEY = 'point.settings.v1';
@@ -29,6 +30,7 @@ function defaults(): Settings {
     pathLossN: 2,
     measuredPower: -59,
     sessionId: randomSessionId(),
+    captureBearing: true,
   };
 }
 

@@ -91,6 +91,7 @@ export class BleScanner {
   private running = false;
   private webScan: { stop: () => Promise<void> } | null = null;
   private webListener: ((ev: Event) => void) | null = null;
+  private webBt: EventTarget | null = null;
   private handler: AdvHandler = () => undefined;
 
   get isRunning(): boolean {
@@ -124,19 +125,35 @@ export class BleScanner {
     }
     try {
       await BleClient.requestLEScan({}, (result) => {
-        const adv = result.advertisement ?? ({} as never);
-        const r: { advertisement?: { localName?: string; rssi?: number; txPower?: number; manufacturerData?: unknown; serviceData?: unknown } } =
-          result as unknown as { advertisement?: { localName?: string; rssi?: number; txPower?: number; manufacturerData?: unknown; serviceData?: unknown } };
-        const a = r.advertisement ?? adv;
+        // Plugin shape: rssi/txPower are TOP-LEVEL on the scan result on Android;
+        // parsed AD structures live under result.advertisement. Read both defensively.
+        const r = result as unknown as {
+          device?: { deviceId?: string; name?: string };
+          localName?: string;
+          rssi?: number;
+          txPower?: number;
+          manufacturerData?: unknown;
+          serviceData?: unknown;
+          advertisement?: {
+            localName?: string;
+            rssi?: number;
+            txPower?: number;
+            manufacturerData?: unknown;
+            serviceData?: unknown;
+          };
+        };
+        const a = r.advertisement ?? {};
+        const rssi = typeof r.rssi === 'number' ? r.rssi : typeof a.rssi === 'number' ? a.rssi : NaN;
+        if (!isFinite(rssi)) return; // never emit placeholder RSSI values
         this.handler(
           parseAdvertisement({
-            deviceId: result.device?.deviceId,
-            address: result.device?.deviceId,
-            name: result.device?.name ?? a.localName,
-            rssi: typeof a.rssi === 'number' ? a.rssi : -100,
-            txPower: typeof a.txPower === 'number' ? a.txPower : undefined,
-            manufacturerData: a.manufacturerData,
-            serviceData: a.serviceData,
+            deviceId: r.device?.deviceId,
+            address: r.device?.deviceId,
+            name: r.device?.name ?? a.localName ?? r.localName,
+            rssi,
+            txPower: typeof a.txPower === 'number' ? a.txPower : typeof r.txPower === 'number' ? r.txPower : undefined,
+            manufacturerData: a.manufacturerData ?? r.manufacturerData,
+            serviceData: a.serviceData ?? r.serviceData,
           }),
         );
       });
@@ -158,6 +175,7 @@ export class BleScanner {
     } catch (e) {
       throw new Error(`LE scan denied: ${(e as Error).message}. Grant the Bluetooth permission prompt.`);
     }
+    this.webBt = bt as unknown as EventTarget;
     this.webListener = (ev: Event) => {
       const e = ev as unknown as {
         device?: { id?: string; name?: string };
@@ -167,18 +185,19 @@ export class BleScanner {
         manufacturerData?: unknown;
         serviceData?: unknown;
       };
+      if (typeof e.rssi !== 'number' || !isFinite(e.rssi)) return; // never emit placeholder RSSI
       this.handler(
         parseAdvertisement({
           deviceId: e.device?.id,
           name: e.device?.name ?? e.name,
-          rssi: typeof e.rssi === 'number' ? e.rssi : -100,
+          rssi: e.rssi,
           txPower: e.txPower,
           manufacturerData: e.manufacturerData,
           serviceData: e.serviceData,
         }),
       );
     };
-    navigator.bluetooth.addEventListener('advertisementreceived', this.webListener);
+    this.webBt.addEventListener('advertisementreceived', this.webListener);
   }
 
   async stop(): Promise<void> {
@@ -191,11 +210,12 @@ export class BleScanner {
     }
     if (this.webListener) {
       try {
-        navigator.bluetooth.removeEventListener('advertisementreceived', this.webListener);
+        this.webBt?.removeEventListener('advertisementreceived', this.webListener);
       } catch {
         /* ignore */
       }
       this.webListener = null;
+      this.webBt = null;
     }
     if (this.isAndroid()) {
       try {
