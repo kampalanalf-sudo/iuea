@@ -1,0 +1,173 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: ["main", "arena/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" .
+          git checkout "${{ github.sha }}"
+
+      - name: Ensure Node 20.19+
+        run: |
+          node --version
+          NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
+          NODE_MINOR=$(node -p 'process.versions.node.split(".")[1]')
+          if [ "$NODE_MAJOR" -lt 20 ] || { [ "$NODE_MAJOR" -eq 20 ] && [ "$NODE_MINOR" -lt 19 ]; }; then
+            echo "Runner Node too old — installing Node 22 LTS"
+            curl -fsSL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz -o /tmp/node.tar.xz
+            mkdir -p /tmp/node22
+            tar -xJf /tmp/node.tar.xz -C /tmp/node22 --strip-components=1
+            echo "/tmp/node22/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Build web bundle
+        run: npm run build
+
+      - name: Capacitor sync (copy web assets into android shell)
+        run: npx cap sync android
+
+      - name: Build debug APK with Gradle (JDK 21, with failure diagnostics)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          export JAVA_HOME="${JAVA_HOME_21_X64:-$JAVA_HOME}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          if ! java -version 2>&1 | grep -qE 'version "(2[1-9]|[3-9][0-9])'; then
+            echo "JDK 21 not present — installing temurin-21-jdk"
+            sudo apt-get update -y > /dev/null
+            sudo apt-get install -y temurin-21-jdk > /dev/null
+            export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
+            export PATH="$JAVA_HOME/bin:$PATH"
+          fi
+          echo "JAVA_HOME=$JAVA_HOME"; java -version
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          if [ -z "$SDK" ] || [ ! -d "$SDK" ]; then
+            echo "No Android SDK on runner — installing from dl.google.com"
+            SDK="$HOME/android-sdk"
+            mkdir -p "$SDK/cmdline-tools"
+            curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/ct.zip
+            unzip -q /tmp/ct.zip -d "$SDK/cmdline-tools"
+            mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+            yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1
+            "$SDK/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+          fi
+          export ANDROID_HOME="$SDK"
+          echo "sdk.dir=$SDK" > android/local.properties
+          echo "SDK contents:"; ls "$SDK"; ls "$SDK/platforms" 2>/dev/null; ls "$SDK/build-tools" 2>/dev/null
+          if [ -x "$SDK/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1
+            "$SDK/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null 2>&1
+          fi
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/gradle.log
+          STATUS=${PIPESTATUS[0]}
+          if [ "$STATUS" -ne 0 ]; then
+            echo "::error::Gradle build failed (exit $STATUS) — publishing diagnostics to ci-debug branch"
+            cd ..
+            {
+              echo "=== gradle tail ==="
+              tail -250 /tmp/gradle.log
+              echo "=== env ==="
+              echo "JAVA_HOME=$JAVA_HOME ANDROID_HOME=$ANDROID_HOME"
+              java -version 2>&1
+              echo "=== sdk dir ==="
+              ls -la "$SDK" 2>/dev/null
+              ls "$SDK/platforms" 2>/dev/null
+              ls "$SDK/build-tools" 2>/dev/null
+            } > ci-debug.txt
+            head -c 60000 ci-debug.txt > /tmp/notes.txt
+            gh release delete ci-debug --yes --cleanup-tag > /dev/null 2>&1
+            gh release create ci-debug ci-debug.txt \
+              --title "CI diagnostics (gradle failed)" \
+              --notes-file /tmp/notes.txt
+            echo "diag release rc=$?"
+            exit "$STATUS"
+          fi
+          set -e
+
+      - name: Publish APK to apk-artifact branch via Contents API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN: ${{ github.run_id }}
+        run: |
+          set -e
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          cp "$APK" ProxiCore-POINT-debug.apk
+          python3 - <<'PY'
+          import base64, json, os, urllib.request, urllib.error
+          token = os.environ["GH_TOKEN"]
+          repo = os.environ["REPO"]
+          sha = os.environ["SHA"]
+          run = os.environ["RUN"]
+          api = f"https://api.github.com/repos/{repo}"
+          branch = "apk-artifact"
+          fname = "ProxiCore-POINT-debug.apk"
+          def req(method, url, body=None):
+              r = urllib.request.Request(url, method=method)
+              r.add_header("Authorization", f"Bearer {token}")
+              r.add_header("Accept", "application/vnd.github+json")
+              r.add_header("X-GitHub-Api-Version", "2022-11-28")
+              data = json.dumps(body).encode() if body is not None else None
+              if data:
+                  r.add_header("Content-Type", "application/json")
+              try:
+                  with urllib.request.urlopen(r, data) as resp:
+                      return resp.status, resp.read()
+              except urllib.error.HTTPError as e:
+                  return e.code, e.read()
+          # 1. Delete existing branch (ignore if absent)
+          st, _ = req("DELETE", f"{api}/git/refs/heads/{branch}")
+          print("delete branch:", st)
+          # 2. Recreate branch at build sha
+          st, body = req("POST", f"{api}/git/refs", {"ref": f"refs/heads/{branch}", "sha": sha})
+          print("create branch:", st)
+          if st >= 300:
+              raise SystemExit(f"branch create failed: {body[:400]!r}")
+          # 3. Commit the APK file onto the branch
+          with open(fname, "rb") as fh:
+              content = base64.b64encode(fh.read()).decode()
+          st, body = req("PUT", f"{api}/contents/{fname}", {
+              "message": f"CI: publish debug APK (run {run})",
+              "content": content,
+              "branch": branch,
+          })
+          print("put contents:", st)
+          if st >= 300:
+              raise SystemExit(f"contents put failed: {body[:400]!r}")
+          print("APK published to branch:", branch)
+          PY
+          echo "Fetch via: https://codeload.github.com/${REPO}/tar.gz/refs/heads/apk-artifact"
+      - name: Attach APK to latest-apk release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          cp "$APK" ProxiCore-POINT-debug.apk
+          if ! gh release view latest-apk > /dev/null 2>&1; then
+            gh release create latest-apk --title "ProxiCore POINT — latest debug APK" \
+              --notes "Refreshed automatically by CI on every successful build."
+          fi
+          gh release upload latest-apk ProxiCore-POINT-debug.apk --clobber
+          echo "APK asset attached to release latest-apk"
