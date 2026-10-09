@@ -1,83 +1,130 @@
-// Shared types for ProxiCore POINT
+/** IUEA Community Radio — domain types. Mirrors supabase/schema.sql. */
 
-export type Shell = 'web' | 'apk' | 'exe';
+export type Category = "talk" | "education" | "music" | "culture" | "sport";
+export type ViewId = "onair" | "podcasts" | "music" | "schedule" | "community" | "studio" | "settings";
 
-export interface IBeaconId {
-  uuid: string;
-  major: number;
-  minor: number;
-}
-
-export interface EddystoneUid {
-  namespace: string;
-  instance: string;
-}
-
-export type ObsSource = 'live' | 'csv' | 'json' | 'ocr';
-
-/** One BLE advertisement observation (live or imported). */
-export interface Observation {
+export interface Show {
   id: string;
-  ts: number; // epoch ms
-  source: ObsSource;
-  name?: string;
-  address?: string; // MAC (native) or opaque device id (web)
-  deviceId?: string;
-  rssi: number;
-  txPower?: number; // calibrated TX power when present
-  dist?: number; // metres, RSSI path-loss estimate
-  bearing?: number; // degrees — source-reported only (never derived)
-  lat?: number; // scanner position
-  lon?: number;
-  manufacturer?: string; // trimmed payload summary
-  ibeacon?: IBeaconId;
-  eddystone?: EddystoneUid;
-  payloadHash?: string;
+  slug: string;
+  title: string;
+  tagline: string;
+  category: Category;
+  host: string;
+  days: number[]; // 0=Sun .. 6=Sat
+  startMin: number; // minutes from midnight, EAT
+  endMin: number;
+  art: string;
+  description: string;
 }
 
-/** Stable-token classification used by the identity ledger. */
-export type TokenKind = 'ibeacon' | 'eddystone' | 'address' | 'payload' | 'rotating';
-
-export interface Identity {
-  id: string; // fingerprint / merge key
-  label: string; // Person-N or BLE-N (rotating vs stable)
-  rotating: boolean;
-  tokenKind: TokenKind;
-  firstSeen: number;
-  lastSeen: number;
-  count: number;
-  rssiSum: number;
-  distLast?: number;
-  distMin?: number;
-  bearing?: number; // last source-reported bearing
-  lat?: number; // last scanner position
-  lon?: number;
-  names: string[];
-  lastRssi: number;
-  source: ObsSource;
-}
-
-/** A scanning console's published workspace (for Admin / P.O.I.N.T.). */
-export interface Workspace {
+export interface Episode {
   id: string;
-  operatorId: string;
-  operatorName: string;
-  deviceLabel: string;
-  updatedAt: number;
-  identities: Identity[];
+  showId: string;
+  title: string;
+  blurb: string;
+  audioUrl: string;
+  durationS: number;
+  publishedAt: string; // ISO
+  plays: number;
+  tags: string[];
 }
 
-export interface User {
+export interface Track {
+  id: string;
+  title: string;
+  artist: string;
+  genre: string;
+  durationS: number;
+  rotation: "hot" | "warm" | "classic";
+  plays: number;
+  audioUrl?: string;
+}
+
+export interface SongRequest {
+  id: string;
+  song: string;
+  artist: string;
+  message: string;
   name: string;
-  role: 'analyst' | 'admin';
+  community: string; // faculty / hall / staff unit
+  status: "queued" | "played" | "pending";
+  createdAt: string;
+  votes: number;
 }
 
-export type ViewId =
-  | 'scan'
-  | 'ledger'
-  | 'map'
-  | 'analysis'
-  | 'io'
-  | 'settings'
-  | 'manuals'
-  | 'native';
+export interface PostComment {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface Post {
+  id: string;
+  author: string;
+  role: string; // e.g. "Guild President", "Staff — Library"
+  kind: "post" | "shoutout" | "announcement" | "club";
+  body: string;
+  createdAt: string;
+  likes: number;
+  comments: PostComment[];
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  options: string[];
+  votes: number[];
+  closesAt: string;
+}
+
+export interface ChatMsg {
+  id: string;
+  name: string;
+  body: string;
+  createdAt: string;
+  dj?: boolean;
+}
+
+export interface NowPlaying {
+  kind: "live" | "episode" | "track";
+  title: string;
+  subtitle: string;
+  art: string;
+  audioUrl?: string;
+  showTitle?: string;
+}
+
+export interface StationSettings {
+  streamUrl: string;
+  frequency: string;
+  whatsapp: string;
+  instagram: string;
+  email: string;
+}
+
+export interface ListenerProfile {
+  id: string;
+  name: string;
+  community: string;
+}
+
+export interface RadioData {
+  shows: Show[];
+  episodes: Episode[];
+  tracks: Track[];
+  requests: SongRequest[];
+  posts: Post[];
+  polls: Poll[];
+  chat: ChatMsg[];
+  nowPlaying: NowPlaying;
+  settings: StationSettings;
+}
+
+export const CATEGORY_LABEL: Record<Category, string> = {
+  talk: "Talk",
+  education: "Education",
+  music: "Music",
+  culture: "Culture",
+  sport: "Sport",
+};

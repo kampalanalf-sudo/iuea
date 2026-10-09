@@ -1,125 +1,105 @@
-import { motion } from 'motion/react';
-import {
-  ArrowDownUp,
-  BookOpen,
-  Brain,
-  Cloud,
-  CloudOff,
-  LogOut,
-  Map as MapIcon,
-  Radar,
-  Settings,
-  Smartphone,
-  Users,
-} from 'lucide-react';
-import { useApp } from '@/hooks';
-import { logout, setView } from '@/lib/store';
-import type { ViewId } from '@/lib/types';
-import { LoginView } from '@/components/LoginView';
-import { ScanView } from '@/components/ScanView';
-import { LedgerView } from '@/components/LedgerView';
-import { MapView } from '@/components/MapView';
-import { AnalysisView } from '@/components/AnalysisView';
-import { IoView } from '@/components/IoView';
-import { SettingsView } from '@/components/SettingsView';
-import { ManualsView } from '@/components/ManualsView';
-import { NativeView } from '@/components/NativeView';
+import { Headphones, Menu, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CloudBadge, NavItems, Sidebar } from "@/components/Sidebar";
+import { PlayerBar } from "@/components/PlayerBar";
+import { AppProvider, useApp } from "@/lib/store";
+import { cx, eatNow } from "@/lib/util";
+import { CommunityView } from "@/views/CommunityView";
+import { MusicView } from "@/views/MusicView";
+import { OnAirView } from "@/views/OnAirView";
+import { PodcastsView } from "@/views/PodcastsView";
+import { ScheduleView } from "@/views/ScheduleView";
+import { SettingsView } from "@/views/SettingsView";
+import { StudioView } from "@/views/StudioView";
 
-const NAV: Array<{ id: ViewId; label: string; icon: typeof Radar; adminOnly?: boolean }> = [
-  { id: 'scan', label: 'Scan', icon: Radar },
-  { id: 'ledger', label: 'Identities', icon: Users },
-  { id: 'map', label: 'P.O.I.N.T. map', icon: MapIcon, adminOnly: true },
-  { id: 'analysis', label: 'Analysis', icon: Brain },
-  { id: 'io', label: 'Import / Export', icon: ArrowDownUp },
-  { id: 'settings', label: 'Settings', icon: Settings },
-  { id: 'manuals', label: 'Manuals', icon: BookOpen },
-  { id: 'native', label: 'APK / EXE', icon: Smartphone },
-];
-
-function CloudBadge() {
-  const s = useApp();
-  const styles: Record<string, string> = {
-    ok: 'border-emerald-600/50 bg-emerald-500/10 text-emerald-400',
-    syncing: 'border-sky-600/50 bg-sky-500/10 text-sky-400',
-    error: 'border-rose-600/50 bg-rose-500/10 text-rose-400',
-    idle: 'border-slate-700 bg-slate-800/50 text-slate-400',
-    off: 'border-slate-800 bg-slate-900/50 text-slate-600',
-  };
+function EatClock({ className }: { className?: string }) {
+  const [now, setNow] = useState(eatNow());
+  useEffect(() => {
+    const iv = window.setInterval(() => setNow(eatNow()), 1000);
+    return () => window.clearInterval(iv);
+  }, []);
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest ${styles[s.cloud]}`} title={s.cloudMessage || `shared cloud: ${s.cloud}`}>
-      {s.cloud === 'off' ? <CloudOff size={11} /> : <Cloud size={11} />}
-      {s.cloud === 'off' ? 'local-first' : s.cloud}
+    <span className={cx("font-mono text-[11px] text-mist", className)}>
+      {now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} <span className="text-gold/70">EAT</span>
     </span>
   );
 }
 
-export default function App() {
+function Shell() {
   const s = useApp();
-  if (!s.user) return <LoginView />;
-
-  const nav = NAV.filter((n) => !n.adminOnly || s.user?.role === 'admin');
-  const view =
-    s.view === 'scan' ? <ScanView /> :
-    s.view === 'ledger' ? <LedgerView /> :
-    s.view === 'map' ? <MapView /> :
-    s.view === 'analysis' ? <AnalysisView /> :
-    s.view === 'io' ? <IoView /> :
-    s.view === 'settings' ? <SettingsView /> :
-    s.view === 'manuals' ? <ManualsView /> :
-    <NativeView />;
+  const [mobileNav, setMobileNav] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="print-hidden fixed inset-y-0 left-0 z-20 flex w-56 flex-col border-r border-slate-800 bg-slate-950/80 backdrop-blur">
-        <div className="flex items-center gap-2.5 border-b border-slate-800 px-4 py-4">
-          <span className="rounded-lg bg-emerald-500/15 p-2 text-emerald-400">
-            <Radar size={18} />
-          </span>
-          <div className="min-w-0">
-            <div className="truncate font-mono text-sm font-bold text-slate-100">ProxiCore POINT</div>
-            <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-slate-500">Person of Interest</div>
-          </div>
-        </div>
-        <nav className="flex-1 space-y-1 overflow-auto p-3">
-          {nav.map((n) => {
-            const Icon = n.icon;
-            const active = s.view === n.id;
-            return (
-              <button
-                key={n.id}
-                onClick={() => setView(n.id)}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 font-mono text-xs font-semibold uppercase tracking-wider transition-colors ${
-                  active ? 'bg-emerald-500/15 text-emerald-400' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
-                }`}
-              >
-                <Icon size={14} /> {n.label}
-              </button>
-            );
-          })}
-        </nav>
-        <div className="border-t border-slate-800 p-3">
-          <div className="mb-2 px-1 font-mono text-[10px] uppercase tracking-widest text-slate-500">
-            {s.user.name} · {s.user.role}
-          </div>
-          <button onClick={logout} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 font-mono text-xs text-slate-400 hover:bg-slate-800/60 hover:text-rose-400">
-            <LogOut size={14} /> Sign out
-          </button>
-        </div>
-      </aside>
+    <div className="min-h-full">
+      <Sidebar />
 
-      <div className="ml-56 flex min-h-screen flex-1 flex-col">
-        <header className="print-hidden sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950/70 px-6 py-3 backdrop-blur">
-          <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-slate-500">
-            {s.scanning ? <span className="text-emerald-400">● live scan · </span> : null}session {s.settings.sessionId}
+      {/* mobile nav drawer */}
+      {mobileNav && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setMobileNav(false)} />
+          <div className="absolute inset-y-0 left-0 w-72 border-r border-gold/15 bg-surface p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <img src="./brand/iuea-shield.png" alt="" className="size-9" />
+                <span className="font-display text-sm font-semibold text-cream">IUEA Community Radio</span>
+              </div>
+              <button onClick={() => setMobileNav(false)} className="btn-ghost size-9" aria-label="Close menu">
+                <X size={16} />
+              </button>
+            </div>
+            <NavItems onPick={() => setMobileNav(false)} />
           </div>
-          <CloudBadge />
+        </div>
+      )}
+
+      <div className="md:pl-64">
+        <header className="sticky top-0 z-20 border-b border-gold/10 bg-ink/80 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 md:px-6">
+            <button onClick={() => setMobileNav(true)} className="btn-ghost size-9 md:hidden" aria-label="Open menu">
+              <Menu size={16} />
+            </button>
+            <img src="./brand/iuea-shield.png" alt="IUEA crest" className="size-8 md:hidden" />
+            <div className="hidden md:block">
+              <div className="font-display text-lg leading-none font-semibold text-cream">
+                IUEA <span className="text-gold">Community Radio</span>
+              </div>
+              <div className="micro mt-0.5 text-faint">Education · Entertainment · Community</div>
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              <CloudBadge />
+              <span className="hidden items-center gap-1.5 text-xs text-mist sm:inline-flex">
+                <Headphones size={13} className="text-gold" />
+                <span className="font-mono font-semibold text-cream">{s.listeners}</span>
+              </span>
+              <EatClock className="hidden sm:inline" />
+            </div>
+          </div>
         </header>
-        <main className="flex-1 p-6">
-          <motion.div key={s.view} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
-            {view}
-          </motion.div>
+
+        <main className="mx-auto max-w-7xl px-4 pt-6 pb-32 md:px-6">
+          {s.view === "onair" ? <OnAirView /> :
+           s.view === "podcasts" ? <PodcastsView /> :
+           s.view === "music" ? <MusicView /> :
+           s.view === "schedule" ? <ScheduleView /> :
+           s.view === "community" ? <CommunityView /> :
+           s.view === "studio" ? <StudioView /> :
+           <SettingsView />}
+
+          <footer className="mt-10 border-t border-gold/10 pt-5 pb-2 text-center">
+            <div className="micro text-faint">IUEA Community Radio · Plot 1112/1121 Kansanga, Ggaba Road, Kampala · Learning to Succeed</div>
+          </footer>
         </main>
       </div>
+
+      <PlayerBar />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AppProvider>
+      <Shell />
+    </AppProvider>
   );
 }

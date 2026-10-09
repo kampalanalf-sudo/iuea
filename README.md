@@ -1,52 +1,85 @@
-# ProxiCore POINT (Person Of Interest Tracking Tool)
+# IUEA Community Radio 🎙️
 
-Live BLE scanning, identity ledger, Groq analysis and an admin P.O.I.N.T. operational map. The application entry point is `src/App.tsx`.
+**The voice of Kansanga.** A radio station for the students and staff of
+**International University of East Africa (IUEA)** — Plot 1112/1121 Kansanga, Ggaba Road,
+Kampala, Uganda. Education *and* entertainment: podcasts, music and the social heartbeat of
+campus, streamed worldwide. Classy, glossy, maroon & gold.
 
-## What it does
+> Brand: IUEA maroon `#7A0000`, tulip gold `#EEAF3D`, black. Official crest & wordmark of
+> IUEA (motto: *“Learning to Succeed”*) composited over original glossy studio artwork.
 
-- **Production SCAN / STOP radar** using Web Bluetooth `requestLEScan` (Chrome/Edge, HTTPS or localhost). No simulated devices.
-- **Distance from RSSI path-loss** with iBeacon / Eddystone calibration when present. Bearings are source-reported only — ordinary BLE cannot measure direction without AoA hardware.
-- **Identity ledger** that merges repeats on fingerprint, device ID, iBeacon UUID+major/minor, Eddystone UID and payload hashes. Rotating `Person-` / `BLE-` labels stay separate unless a stable token matches.
-- **Admin P.O.I.N.T. view**: combined identities from every scanning console, juxtaposed over an OpenStreetMap around the admin's live GPS.
-- **Groq live analysis** (`llama-3.3-70b-versatile`) over a session snapshot.
-- **CSV / JSON / screenshot import** with OCR review, plus CSV, JSON and printable HTML export.
-- **Login + admin visibility**: analysts keep their own sessions; admins review every published workspace on the device.
-- **In-app manuals**: sidebar → Manuals (Operator Manual + Admin Manual), printable.
+---
 
-## Data inputs
+## What the station does
 
-- Live advertisements (name, RSSI, TX power, manufacturer / service payloads).
-- POINT CSV: `name,dist,rssi,bearing,timestamp,lat,lon`.
-- JSON observations and device-detail text / screenshots.
+| Section | What listeners & presenters get |
+| --- | --- |
+| **On Air** | Live player with real spectrum visualizer, live show detection from the schedule (EAT), listener count, and the **shout wall** (live chat with studio messages). |
+| **Podcasts** | Five shows with generated glossy cover art and real spoken episodes: *Kansanga Breakfast Run*, *The Syllabus* (study-skills hour), *Ggaba Road Grooves*, *Night Prep*, *Guild Square*. |
+| **Music** | Hot / warm / classic rotation (Ugandan hits + campus artists), **request line** with dedications and community voting, played/queued status for the studio. |
+| **Schedule** | Weekly broadcast grid in East Africa Time with a live “on air now” line and today highlight. |
+| **Community** | Social wall (posts, shoutouts, announcements, club news) with likes + comments, campus **polls**, club spotlights — the social concept of the station. |
+| **Studio** | Presenter console: go live, play episodes/tracks, clear the request queue, publish as Studio, talk to the shout wall. |
+| **Settings** | Listener profile, **Supabase** connection, live stream URL, station contacts, and the downloadable **brand & artwork kit**. |
 
-## Shared cloud (Supabase) — all users, one backend
+### Audio sources (never silent)
+1. **Real stream** — set any Icecast / Zeno.fm / Radio.co URL in Settings (or `VITE_STREAM_URL`).
+2. **On demand** — podcast episodes & licensed tracks (four spoken episodes ship in `public/audio/`).
+3. **Studio demo bed** — a built-in WebAudio Afro-soul mix (chords, kick, shaker, bass, pluck)
+   used automatically until a stream exists, so the station always transmits something beautiful.
 
-Yes. POINT supports Supabase as the shared store so every operator's scans land in one place for Admin + P.O.I.N.T.
+Everything routes through one `AnalyserNode`, so the gold visualizer is always truthful.
 
-1. Create a free project at supabase.com → copy Project URL + anon public key.
-2. In Supabase Dashboard → SQL Editor → paste and Run **`supabase/schema.sql`** (creates `point_operators`, `point_sessions`, `point_observations` + open prototype policies).
-3. In POINT → Settings → Shared cloud → paste URL + anon key → Save → Test connection.
-4. From then on each console auto-pushes its workspace ~1.5 s after every change. Admin and P.O.I.N.T. merge cloud + local, refresh every 15 s and live via realtime.
-5. For Vercel deploys you can also set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` env vars (see `.env.example`) — Settings entries override them per device.
+## Shared cloud — Supabase (all listeners, one backend)
 
-Without Supabase the app still works fully offline; Admin only sees workspaces saved on that same browser.
+1. Create a free project at [supabase.com](https://supabase.com) → copy **Project URL** + **anon public key**.
+2. SQL Editor → run **`supabase/schema.sql`** (12 tables, open prototype RLS policies, realtime publication).
+3. Optional: run **`supabase/seed.sql`** — or just connect: the app **auto-seeds an empty project** on first connect.
+4. In the app → **Settings → Shared cloud** → paste URL + key → **Connect**.
+   From then on: now-playing, shout wall, requests, posts, polls and listener presence sync live
+   across every device via Supabase **Realtime** (postgres_changes).
+5. Hosted deploys can pre-configure with `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (see `.env.example`).
 
-## Privacy and interpretation
+Without Supabase the app is fully functional **local-first**; the cloud simply makes the whole
+campus share one station brain.
 
-Processing is local-first. Map tiles (OpenStreetMap), Groq analysis and Supabase sync need internet. Supabase stores raw BLE observations (names, RSSI, payloads, scanner coords) — enable it only for authorised operations. Coordinates in CSVs are scanner positions, not target GPS. Broadcast names are not proof of a person — never present a `Person-` label as personal identification.
+## GitHub
 
-## Native builds — Android APK + Windows EXE
+- **CI** (`.github/workflows/ci.yml`): typecheck + build on every push/PR, `dist/` as artifact.
+- **GitHub Pages** (`.github/workflows/deploy-pages.yml`): publishes the single-file build on push to `main` / `arena/**`.
+- Host anywhere static: Vercel/Netlify import → framework **Vite** → build `npm run build`, output `dist`.
 
-One codebase, three shells. The app auto-detects its shell (`src/lib/native.ts`) and picks the richest BLE engine. Full guide: `docs/NATIVE_BUILDS.md` + in-app sidebar → **APK / EXE**.
+## Artwork & brand kit
 
-- **Android APK (Capacitor):** `capacitor.config.ts` → `npx cap add android` → `./gradlew assembleDebug`. CI: `.github/workflows/build-android.yml` produces `app-debug.apk`.
-- **Windows EXE (Electron):** `electron/main.cjs` + `electron/preload.cjs` + `electron-builder.yml`. CI: `.github/workflows/build-windows.yml` produces `ProxiCore-POINT-Setup-*.exe`.
+All artwork composites the **actual IUEA crest/wordmark** over original glossy studio art
+(generated backdrops + ImageMagick compositing), in `public/art/`:
 
-Does the APK give richer data? **Yes, substantially** — unfiltered scan, every packet, real MACs, complete AD structures, background scanning, fused GPS + compass, no HTTPS/flag limits. See the in-app 15-row Web vs APK vs EXE matrix.
+- `station-cover.png` 1600×1600 — podcast-feed cover
+- `social-banner.png` 1600×900 — social header
+- `show-*.png` 1000×1000 — per-show covers (breakfast, syllabus, grooves, night, guild)
+- `bg-*.jpg` — glossy backdrop masters
+- `public/brand/` — official logo (transparent), crest, app icons, favicon
 
-## Development and deploy
+Downloadables are linked in-app under **Settings → Brand & artwork kit**.
+Brand source reference: `docs/brand-source/`.
 
-Install with `npm install`, run with `npm run dev`, build with `npm run build` (single-file `dist/index.html`).
+## Development
 
-To host on Vercel: push this repo to GitHub, then in Vercel → Add New Project → import the repo → framework preset **Vite** → build command `npm run build`, output `dist`. Add `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` in Vercel → Environment Variables if you want cloud pre-configured. The Groq key is entered in-app per user.
-# proxicore-point
+```bash
+npm install
+npm run dev        # studio at http://localhost:5173
+npm run typecheck
+npm run build      # single-file dist/index.html (works from GitHub Pages sub-paths)
+```
+
+Stack: React 19 · Vite 7 · Tailwind CSS 4 · motion · lucide · @supabase/supabase-js.
+Typefaces: Playfair Display (display serif), Manrope (UI), IBM Plex Mono (studio meta).
+
+## Campus care
+
+- Shoutouts are read on air; kindness is part of the format.
+- Requests credit the requester’s hall/faculty/unit.
+- The RLS policies are open prototype policies for one shared campus backend — tighten them
+  (authenticated students/staff) before going to production with real personal data.
+
+**Learning to Succeed — on air, online, on campus.** 🇺🇬
