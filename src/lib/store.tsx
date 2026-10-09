@@ -105,6 +105,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* lock-screen / media-key metadata + live tab title */
+  useEffect(() => {
+    const np = data.nowPlaying;
+    document.title = `${playing ? "▶ " : ""}${np.title} — IUEA Community Radio`;
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: np.title,
+          artist: np.subtitle,
+          album: "IUEA Community Radio · Kampala",
+          artwork: [{ src: new URL(np.art, window.location.href).href, sizes: "1600x1600", type: "image/png" }],
+        });
+      } catch {
+        /* older browsers */
+      }
+    }
+  }, [data.nowPlaying, playing]);
+
+  const toggleRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    toggleRef.current = () => {
+      if (engine.playing) engine.pause();
+      else void engine.play(data.nowPlaying, data.settings.streamUrl || ((import.meta.env.VITE_STREAM_URL as string) ?? ""));
+    };
+  }, [data.nowPlaying, data.settings.streamUrl]);
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    const toggle = () => toggleRef.current();
+    navigator.mediaSession.setActionHandler("play", toggle);
+    navigator.mediaSession.setActionHandler("pause", toggle);
+    navigator.mediaSession.setActionHandler("stop", () => engine.pause());
+    return () => {
+      navigator.mediaSession.setActionHandler("play", null);
+      navigator.mediaSession.setActionHandler("pause", null);
+      navigator.mediaSession.setActionHandler("stop", null);
+    };
+  }, []);
+
   /* cloud connect + realtime */
   useEffect(() => {
     let unsub: (() => void) | null = null;
