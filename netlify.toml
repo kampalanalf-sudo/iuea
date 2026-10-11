@@ -1,0 +1,4 @@
+[build]
+  # Run the project's build once a package.json exists; until then, publish a placeholder page.
+  command = "if [ -f package.json ]; then npm run build; else rm -rf dist && cp -r placeholder dist; fi"
+  publish = "dist"
