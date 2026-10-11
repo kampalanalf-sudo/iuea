@@ -371,6 +371,12 @@ export const SupabaseGithubView: React.FC<SupabaseGithubViewProps> = ({
                 </span>
               </div>
               <div className="flex items-center justify-between">
+                <span className="text-[#6B7280]">NETLIFY CONFIG:</span>
+                <span className="text-[#10B981] font-bold">
+                  netlify.toml (dist • Node 22)
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-[#6B7280]">SUPABASE MIGRATION:</span>
                 <span className="text-[#F3F4F6]">
                   001_tank_distribution_schema.sql

@@ -39,3 +39,22 @@
 npm install
 npm run dev
 ```
+
+---
+
+## Deploying to Netlify
+
+This repository includes a pre-configured [`netlify.toml`](./netlify.toml) and [`public/_redirects`](./public/_redirects) for zero-config deployment on Netlify:
+
+1. Log in to [Netlify](https://app.netlify.com) and click **Add new site → Import an existing project**.
+2. Choose **GitHub** and select the **`kampalanalf-sudo/iuea`** repository.
+3. Select branch **`arena/b41594a2-iuea`** (or **`main`** after merging the pull request).
+4. Netlify will automatically detect these settings from `netlify.toml`:
+   - **Build command:** `npm run build`
+   - **Publish directory:** `dist`
+   - **Node version:** `22`
+5. *(Optional)* Under **Site configuration → Environment variables**, add:
+   - `VITE_SUPABASE_URL` = your Supabase Project URL
+   - `VITE_SUPABASE_ANON_KEY` = your Supabase Anon Public Key
+6. Click **Deploy site**.
+
