@@ -2,8 +2,8 @@
 
 Official website for **Gateway Revival Glory Church & Ministries**, Kampala, Uganda —
 led by Vision Bearer **Pastor Agatha Christine Idusso** (“Mama Agatha”).
-City Church: 4th Floor, Corner House, Nakasero, Entebbe Road + branches in
-**Tema Village (Kikyusa–Tema)**, **Kikyusa** and **Kayabwe (Masaka Road)**.
+3 branches — City Church: 4th Floor, Corner House, Nakasero, Entebbe Road,
+**Tema (Kikyusa–Tema)** and **Kayabwe (Masaka Road)**.
 
 All stories, photos and testimonies are taken from the church's **12th Anniversary
 magazine** (*“gateway recovered 2025 30th august.pdf”*, via Google Drive):

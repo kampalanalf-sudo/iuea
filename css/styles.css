@@ -147,7 +147,7 @@ code{background:#eee9dc;padding:.1em .4em;border-radius:6px;font-size:.85em}
 @media(max-width:600px){.visit-grid{grid-template-columns:1fr}}
 
 /* branches */
-.branch-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem;margin-top:1.8rem}
+.branch-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.4rem;margin-top:1.8rem;max-width:920px;margin-inline:auto}
 @media(max-width:960px){.branch-grid{grid-template-columns:1fr;max-width:560px;margin-inline:auto}}
 .branch-card{background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;position:relative}
 .branch-card img{height:210px;width:100%;object-fit:cover}
@@ -338,3 +338,4 @@ code{background:#eee9dc;padding:.1em .4em;border-radius:6px;font-size:.85em}
 .spotlight.reverse{direction:rtl}
 .spotlight.reverse>*{direction:ltr}
 .m-photo{width:100%;height:150px;object-fit:cover;border-radius:10px;margin-bottom:.7rem}
+.branch-extra{width:100%;height:170px;object-fit:cover;border-radius:10px;margin:.4rem 0}
