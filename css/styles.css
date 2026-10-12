@@ -296,3 +296,45 @@ code{background:#eee9dc;padding:.1em .4em;border-radius:6px;font-size:.85em}
 #lightImg{border-radius:10px;max-height:70vh;width:100%;object-fit:contain;background:#000}
 .reveal{opacity:0;transform:translateY(24px);transition:.7s}
 .reveal.visible{opacity:1;transform:none}
+
+/* ── HQ banner ── */
+.hq-banner{background:linear-gradient(135deg,var(--purple-900),var(--purple-700));border-radius:var(--radius);padding:1.6rem 1.8rem;margin:1.6rem 0;color:#fff;display:flex;gap:1.2rem;align-items:center;justify-content:space-between;flex-wrap:wrap;box-shadow:var(--shadow);border:1px solid rgba(232,199,102,.4)}
+.hq-banner h3{color:#fff;font-size:1.15rem}
+.hq-banner p{color:#d9d2f2;font-size:.92rem;max-width:640px}
+.hq-banner .btn-row{margin-top:0}
+
+/* ── journey timeline ── */
+.timeline-title{text-align:center;margin:2.4rem 0 1.2rem}
+.timeline{list-style:none;max-width:760px;margin:0 auto;display:grid;gap:0;position:relative;padding-left:1.6rem}
+.timeline::before{content:"";position:absolute;left:.55rem;top:.5rem;bottom:.5rem;width:3px;background:linear-gradient(var(--gold),var(--purple-700));border-radius:2px}
+.timeline-item{position:relative;padding:.7rem 0 .7rem 1.2rem}
+.timeline-item::before{content:"";position:absolute;left:-1.6rem;top:1.05rem;width:.85rem;height:.85rem;background:var(--gold);border:3px solid #fff;outline:2px solid var(--gold-dark);border-radius:50%}
+.timeline-item strong{display:block;color:var(--purple-900);font-size:.95rem}
+.timeline-item span{color:var(--muted);font-size:.9rem}
+
+/* ── real pastor photo ── */
+.pastor-photo.real img:first-of-type{max-width:300px;margin:0 auto}
+.pastor-second{margin-top:1rem!important;border-radius:14px;box-shadow:var(--shadow-sm);border:4px solid #fff!important;outline:none!important;max-height:300px!important;object-fit:cover}
+.zoomable{cursor:zoom-in;transition:.25s}
+.zoomable:hover{transform:scale(1.02)}
+
+/* ── testimony faces + letters ── */
+.t-face{width:66px;height:66px;border-radius:50%;object-fit:cover;border:3px solid var(--gold);box-shadow:var(--shadow-sm)}
+.letters{margin-top:1.8rem;text-align:center}
+.letters-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1rem}
+@media(max-width:700px){.letters-row{grid-template-columns:1fr;max-width:420px;margin-inline:auto}}
+.letters-row figure{margin:0;background:#fff;border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm);border:1px solid #e7e1f5}
+.letters-row img{height:300px;width:100%;object-fit:cover;object-position:top}
+.letters-row figcaption{padding:.6rem;font-size:.85rem;color:var(--muted);font-weight:600}
+
+/* ── spotlight image sets ── */
+.spotlight-imgs{display:grid;gap:0;background:#12082e}
+.spotlight-imgs figure{margin:0;position:relative}
+.spotlight-imgs img{width:100%;height:100%;min-height:220px;object-fit:cover}
+.spotlight-imgs figcaption{position:absolute;bottom:.7rem;left:.7rem;background:rgba(0,0,0,.65);color:#ffe9a8;font-size:.75rem;font-weight:700;padding:.25rem .7rem;border-radius:999px}
+.spotlight-imgs.trio{grid-template-columns:1fr 1fr 1fr}
+.spotlight-imgs.trio img{min-height:260px}
+@media(max-width:880px){.spotlight-imgs.trio{grid-template-columns:1fr 1fr}.spotlight-imgs.trio figure:last-child{grid-column:1/-1}}
+.spotlight.reverse{direction:rtl}
+.spotlight.reverse>*{direction:ltr}
+.m-photo{width:100%;height:150px;object-fit:cover;border-radius:10px;margin-bottom:.7rem}

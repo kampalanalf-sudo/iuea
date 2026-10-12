@@ -16,7 +16,7 @@ $("#year").textContent=new Date().getFullYear();
 
 /* ---------- reveal on scroll ---------- */
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("visible");io.unobserve(e.target);}}),{threshold:.12});
-$$(".section h2, .section .eyebrow, .value-card, .branch-card, .ministry-card, .visit-card, .spotlight, .video-feature").forEach(el=>{el.classList.add("reveal");io.observe(el);});
+$$(".section h2, .section .eyebrow, .value-card, .branch-card, .ministry-card, .visit-card, .spotlight, .video-feature, .hq-banner, .timeline-item, .letters").forEach(el=>{el.classList.add("reveal");io.observe(el);});
 
 /* ---------- animated counters ---------- */
 const cio=new IntersectionObserver(es=>es.forEach(e=>{
@@ -31,18 +31,18 @@ $$("[data-count]").forEach(el=>cio.observe(el));
    ▶ CHURCH MEDIA TEAM: replace each `youtubeId` with your real YouTube video IDs
    (the 11 characters after "v=" in a YouTube link) and update titles/dates. */
 const VIDEOS=[
-  {youtubeId:"dy9nwe9_xzw", title:"Anniversary Thanksgiving Service — “The Glory of the Latter House”", meta:"Pastor Agatha Idusso • Tema Branch • 4 Oct 2026", dur:"2:14:20", thumb:"assets/images/anniversary-main.jpg",
-   desc:"The climax of our Anniversary Celebrations — worship, testimonies and a powerful thanksgiving word."},
-  {youtubeId:"dy9nwe9_xzw", title:"Glory Conference Day 2 — Teaching & Water Baptism", meta:"GRGC Conference • Tema Branch • 3 Oct 2026", dur:"1:48:05", thumb:"assets/images/anniversary-choir.jpg",
-   desc:"Deep teaching, youth rally highlights and baptism of new believers."},
-  {youtubeId:"dy9nwe9_xzw", title:"Revival Night — Worship & Altar Call (Anniversary Day 1)", meta:"Night of Worship • Tema Branch • 2 Oct 2026", dur:"2:02:44", thumb:"assets/images/choir.jpg",
-   desc:"A night of repentance, rededication and Holy Spirit fire."},
-  {youtubeId:"dy9nwe9_xzw", title:"Sunday Celebration Service — “Enter His Gates” (Psalm 100)", meta:"Pastor Agatha Idusso • 11 Oct 2026", dur:"1:56:10", thumb:"assets/images/hero-worship.jpg",
-   desc:"This week's Sunday word: thanksgiving as a gateway to glory."},
-  {youtubeId:"dy9nwe9_xzw", title:"Midweek Fire Service — Healing & Deliverance", meta:"Wednesday Service • Tema Branch", dur:"1:32:18", thumb:"assets/images/outreach.jpg",
-   desc:"Prayer, healing testimonies and deliverance ministration."},
-  {youtubeId:"dy9nwe9_xzw", title:"Gayaza Youth Home — Stories of Restoration", meta:"GRGC Projects • Documentary", dur:"12:40", thumb:"assets/images/youth-home.jpg",
-   desc:"Meet the former street children now sheltered, schooled and shining at Gayaza."}
+  {youtubeId:"dy9nwe9_xzw", title:"12th Anniversary Thanksgiving Service — “Not to us, O Lord” (Psalm 115:1)", meta:"Pastor Agatha Christine Idusso • 30 Aug 2025", dur:"2:14:20", thumb:"assets/images/real/anniversary-stage.jpg",
+   desc:"The climax of 12 years of God's faithfulness — worship, testimonies and thanksgiving."},
+  {youtubeId:"dy9nwe9_xzw", title:"Ministering Under the Trees — Tema Village, Kikyusa", meta:"Outdoor Service • Kikyusa–Tema", dur:"1:48:05", thumb:"assets/images/real/tema-trees.jpg",
+   desc:"The Word preached where the church began — under the eucalyptus trees."},
+  {youtubeId:"dy9nwe9_xzw", title:"Night Crusade — Tema Village", meta:"Crusade • Tema Branch", dur:"2:02:44", thumb:"assets/images/real/night-crusade.jpg",
+   desc:"Souls won, hearts turned back to Jesus — the first of its kind in the area."},
+  {youtubeId:"dy9nwe9_xzw", title:"Worship Team Ministration — Anniversary Celebrations", meta:"GRGC Worship Team • 30 Aug 2025", dur:"48:10", thumb:"assets/images/real/worship-team.jpg",
+   desc:"Songs of thanksgiving from our anniversary choir and worship team."},
+  {youtubeId:"dy9nwe9_xzw", title:"Laying the Foundation Stone — Kikyusa Church", meta:"Building Project • Kikyusa", dur:"32:18", thumb:"assets/images/real/foundation-stone.jpg",
+   desc:"A new altar rises in Kikyusa — foundation stone laid in faith."},
+  {youtubeId:"dy9nwe9_xzw", title:"Gayaza Children's Home — From Then to Now", meta:"GRGC Projects • Documentary", dur:"12:40", thumb:"assets/images/real/gayaza-home.jpg",
+   desc:"From construction site to a loving home for teenagers — see what God has done."}
 ];
 const grid=$("#videoGrid"), modal=$("#videoModal"), mFrame=$("#modalFrame"), mTitle=$("#modalTitle");
 VIDEOS.forEach((v,i)=>{
@@ -63,15 +63,17 @@ function closeModal(){modal.classList.remove("open");modal.setAttribute("aria-hi
 $("#modalClose").addEventListener("click",closeModal);
 modal.addEventListener("click",e=>{if(e.target===modal)closeModal();});
 
-/* ---------- lightbox ---------- */
+/* ---------- lightbox (gallery + any .zoomable photo) ---------- */
 const light=$("#lightbox"), lightImg=$("#lightImg"), lightCap=$("#lightCap");
-$$("#annivGallery figure").forEach(f=>{
-  f.addEventListener("click",()=>{
-    const img=$("img",f);
-    lightImg.src=img.src; lightImg.alt=img.alt; lightCap.textContent=$("figcaption",f)?.textContent||"";
-    light.classList.add("open"); light.setAttribute("aria-hidden","false"); document.body.style.overflow="hidden";
-  });
-});
+function openLight(img){
+  if(!img)return;
+  lightImg.src=img.src; lightImg.alt=img.alt;
+  const fig=img.closest("figure");
+  lightCap.textContent=(fig&&$("figcaption",fig)?.textContent)||img.alt||"";
+  light.classList.add("open"); light.setAttribute("aria-hidden","false"); document.body.style.overflow="hidden";
+}
+$$("#annivGallery figure").forEach(f=>f.addEventListener("click",()=>openLight($("img",f))));
+$$(".zoomable").forEach(img=>img.addEventListener("click",e=>{e.stopPropagation();openLight(img);}));
 function closeLight(){light.classList.remove("open");light.setAttribute("aria-hidden","true");document.body.style.overflow="";}
 $("#lightClose").addEventListener("click",closeLight);
 light.addEventListener("click",e=>{if(e.target===light)closeLight();});
