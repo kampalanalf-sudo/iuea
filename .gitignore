@@ -1,0 +1,5 @@
+# Heavy / private extraction artifacts — never commit
+google_drive/
+pdf_extract/
+pdf_extract_*
+*.pdf
