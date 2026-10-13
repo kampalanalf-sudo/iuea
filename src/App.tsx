@@ -10,6 +10,7 @@ import {
   EyeOff,
   GitBranch,
   LayoutDashboard,
+  LogOut,
   Menu,
   PlusCircle,
   ShieldCheck,
@@ -20,6 +21,7 @@ import {
 import { BottomAudioBar } from './components/BottomAudioBar';
 import { CatalogManagerView } from './components/CatalogManagerView';
 import { CommandOverviewView } from './components/CommandOverviewView';
+import { LoginGatewayView } from './components/LoginGatewayView';
 import { ProfilesAndManualsView } from './components/ProfilesAndManualsView';
 import { ReleaseBuilderView } from './components/ReleaseBuilderView';
 import { ReleaseInspectorModal } from './components/ReleaseInspectorModal';
@@ -65,8 +67,9 @@ type NavView =
   | 'profiles-manuals'
   | 'supabase-github';
 
-const LS_USER_PROFILES = 'tank_dist_user_profiles_v1';
-const LS_ACTIVE_PROFILE_ID = 'tank_dist_active_profile_id_v1';
+const LS_USER_PROFILES = 'tank_dist_user_profiles_v2';
+const LS_ACTIVE_PROFILE_ID = 'tank_dist_active_profile_id_v2';
+const LS_IS_AUTHENTICATED = 'tank_dist_is_authenticated_v2';
 
 export function App() {
   const [activeView, setActiveView] = useState<NavView>('overview');
@@ -105,6 +108,15 @@ export function App() {
       );
     } catch {
       return INITIAL_USER_PROFILES[0].id;
+    }
+  });
+
+  // Authentication Session Gate (Defaults to false so users see the Login Facility first)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(LS_IS_AUTHENTICATED) === 'true';
+    } catch {
+      return false;
     }
   });
 
@@ -148,18 +160,20 @@ export function App() {
 
   const handleSelectUserProfile = (nextProf: UserProfileAccount) => {
     setActiveUserProfileId(nextProf.id);
+    setIsAuthenticated(true);
     try {
       localStorage.setItem(LS_ACTIVE_PROFILE_ID, nextProf.id);
+      localStorage.setItem(LS_IS_AUTHENTICATED, 'true');
     } catch {
       // ignore
     }
     setProfileDropdownOpen(false);
     const meta = PROFILE_CATEGORY_META[nextProf.category];
     showToast(
-      `Switched active profile to ${nextProf.name} (${meta.shortBadge})${
+      `Signed in as ${nextProf.name} (${meta.shortBadge})${
         nextProf.canSeeTechDetails
-          ? ' — Full Tech & Cloud Access Enabled'
-          : ' — Tech Details Hidden'
+          ? ' — Full Admin & Cloud Access Enabled'
+          : ' — Clean Music Industry Workspace'
       }`
     );
   };
@@ -173,6 +187,17 @@ export function App() {
       // ignore
     }
     handleSelectUserProfile(newProf);
+  };
+
+  const handleSignOut = () => {
+    audioEngine.pause();
+    setIsAuthenticated(false);
+    setProfileDropdownOpen(false);
+    try {
+      localStorage.setItem(LS_IS_AUTHENTICATED, 'false');
+    } catch {
+      // ignore
+    }
   };
 
   const handlePlayTrack = (track: TrackItem, release: ReleaseItem) => {
@@ -232,7 +257,7 @@ export function App() {
     showToast('Artist & Label profile updated.');
   };
 
-  // Filter releases by role scope if applicable (or fallback to full catalog if none match so no view is ever empty)
+  // Filter releases by role scope if applicable
   const scopedReleases = React.useMemo(() => {
     if (
       activeUserProfile.category === 'tank_admin' ||
@@ -256,6 +281,17 @@ export function App() {
     });
     return matched.length > 0 ? matched : releases;
   }, [releases, activeUserProfile]);
+
+  // Show Login Gateway when not signed in
+  if (!isAuthenticated) {
+    return (
+      <LoginGatewayView
+        profiles={userProfiles}
+        onAuthenticated={handleSelectUserProfile}
+        onRegisterProfile={handleCreateUserProfile}
+      />
+    );
+  }
 
   const navItems: {
     id: NavView;
@@ -377,24 +413,24 @@ export function App() {
             </nav>
           </div>
 
-          {/* Bottom Sidebar Active User & PDF Manual Quick-Card */}
-          <div className="p-4 space-y-2.5 border-t border-[#232836]">
+          {/* Bottom Sidebar Active User, Manual & Sign Out */}
+          <div className="p-4 space-y-2 border-t border-[#232836]">
             <div
               onClick={() => setActiveView('profiles-manuals')}
-              className="p-3.5 rounded-xl bg-[#141720] hover:bg-[#191D28] border border-[#232836] space-y-1.5 cursor-pointer transition-colors"
+              className="p-3 rounded-xl bg-[#141720] hover:bg-[#191D28] border border-[#232836] space-y-1 cursor-pointer transition-colors"
             >
               <div className="flex items-center justify-between text-[10px] font-mono-tech">
                 <span className="text-[#9CA3AF] flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#10B981]" />
                   {activeCategoryMeta.shortBadge}
                 </span>
-                <span className="text-[#D4FF00] underline">Switch Role</span>
+                <span className="text-[#D4FF00] underline">Switch User</span>
               </div>
               <div className="text-xs font-bold text-[#F3F4F6] truncate">
                 {activeUserProfile.name}
               </div>
               <div className="text-[10px] font-mono-tech text-[#6B7280] truncate">
-                {activeUserProfile.organization}
+                {activeUserProfile.email}
               </div>
             </div>
 
@@ -405,23 +441,32 @@ export function App() {
               className="w-full py-2 px-3 rounded-lg bg-[#181B24] hover:bg-[#222736] border border-[#2A3042] text-xs font-mono-tech text-[#D4FF00] flex items-center justify-center gap-2 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
-              Download {activeCategoryMeta.shortBadge} PDF Manual
+              {activeCategoryMeta.shortBadge} PDF Manual
             </button>
 
-            {scopedReleases[0]?.tracks[0] && (
+            <div className="grid grid-cols-2 gap-2">
+              {scopedReleases[0]?.tracks[0] && (
+                <button
+                  onClick={() =>
+                    handlePlayTrack(
+                      scopedReleases[0].tracks[0],
+                      scopedReleases[0]
+                    )
+                  }
+                  className="py-1.5 px-2.5 rounded-lg bg-[#12151E] hover:bg-[#1C202E] border border-[#232836] text-[11px] font-mono-tech text-[#9CA3AF] hover:text-[#F3F4F6] flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Volume2 className="w-3.5 h-3.5 text-[#10B981]" />
+                  Audio Test
+                </button>
+              )}
               <button
-                onClick={() =>
-                  handlePlayTrack(
-                    scopedReleases[0].tracks[0],
-                    scopedReleases[0]
-                  )
-                }
-                className="w-full py-1.5 px-3 rounded-lg bg-[#12151E] hover:bg-[#1C202E] border border-[#232836] text-[11px] font-mono-tech text-[#9CA3AF] hover:text-[#F3F4F6] flex items-center justify-center gap-1.5 cursor-pointer"
+                onClick={handleSignOut}
+                className="py-1.5 px-2.5 rounded-lg bg-[#EF4444]/15 hover:bg-[#EF4444]/25 border border-[#EF4444]/30 text-[11px] font-mono-tech text-[#FCA5A5] flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Volume2 className="w-3.5 h-3.5 text-[#10B981]" />
-                Test Studio Audio Player
+                <LogOut className="w-3.5 h-3.5" />
+                Sign Out
               </button>
-            )}
+            </div>
           </div>
         </aside>
 
@@ -499,14 +544,14 @@ export function App() {
               )}
             </div>
 
-            {/* Right Header Controls: Interactive Profile Switcher + PDF Manual + New Release */}
+            {/* Right Header Controls: Interactive Profile Switcher + PDF Manual + Sign Out */}
             <div className="flex items-center gap-2.5">
               {/* Role & Profile Switcher Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                   className="px-3 py-1.5 rounded-lg bg-[#141720] hover:bg-[#1C202E] border border-[#2A3042] flex items-center gap-2 text-xs cursor-pointer transition-colors"
-                  title="Switch User Profile / Role Category"
+                  title="Switch User Profile or Sign Out"
                 >
                   <span
                     className="w-6 h-6 rounded-md flex items-center justify-center font-mono-tech font-bold text-[10px] text-[#0A0B0E]"
@@ -532,7 +577,7 @@ export function App() {
                   <div className="absolute right-0 mt-2 w-80 rounded-xl bg-[#12151E] border border-[#2E3548] shadow-2xl py-2 z-50">
                     <div className="px-3.5 py-2 border-b border-[#232836] flex items-center justify-between">
                       <span className="text-[10px] font-mono-tech uppercase text-[#9CA3AF]">
-                        SWITCH ACTIVE PROFILE ({userProfiles.length})
+                        QUICK SWITCH ACCOUNT ({userProfiles.length})
                       </span>
                       <button
                         onClick={() => {
@@ -541,10 +586,10 @@ export function App() {
                         }}
                         className="text-[10px] font-mono-tech text-[#D4FF00] hover:underline cursor-pointer"
                       >
-                        Manage All →
+                        All Profiles →
                       </button>
                     </div>
-                    <div className="max-h-72 overflow-y-auto divide-y divide-[#1C202B]">
+                    <div className="max-h-64 overflow-y-auto divide-y divide-[#1C202B]">
                       {userProfiles.map((prof) => {
                         const isSelected = prof.id === activeUserProfile.id;
                         const catMeta = PROFILE_CATEGORY_META[prof.category];
@@ -568,10 +613,7 @@ export function App() {
                                   {prof.name}
                                 </div>
                                 <div className="text-[10px] font-mono-tech text-[#9CA3AF] truncate">
-                                  {catMeta.shortBadge} •{' '}
-                                  {prof.canSeeTechDetails
-                                    ? 'Tech Visible'
-                                    : 'Tech Hidden'}
+                                  {catMeta.shortBadge} • {prof.email}
                                 </div>
                               </div>
                             </div>
@@ -583,6 +625,15 @@ export function App() {
                           </button>
                         );
                       })}
+                    </div>
+                    <div className="px-3.5 pt-2 mt-1 border-t border-[#232836]">
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full py-2 rounded-lg bg-[#EF4444]/15 hover:bg-[#EF4444]/25 text-[#FCA5A5] text-xs font-mono-tech font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Sign Out to Login Screen
+                      </button>
                     </div>
                   </div>
                 )}
@@ -603,7 +654,15 @@ export function App() {
                 className="px-3.5 py-2 rounded-lg bg-[#D4FF00] hover:bg-[#e1ff33] text-[#0A0B0E] font-bold text-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
-                <span>New Release</span>
+                <span className="hidden sm:inline">New Release</span>
+              </button>
+
+              <button
+                onClick={handleSignOut}
+                className="p-2 rounded-lg bg-[#141720] hover:bg-[#EF4444]/20 border border-[#232836] hover:border-[#EF4444]/40 text-[#9CA3AF] hover:text-[#FCA5A5] cursor-pointer transition-colors"
+                title="Sign Out to Login Screen"
+              >
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           </header>
@@ -634,6 +693,13 @@ export function App() {
                   </button>
                 );
               })}
+              <button
+                onClick={handleSignOut}
+                className="w-full px-4 py-2.5 rounded-lg text-xs font-semibold text-[#FCA5A5] flex items-center gap-3"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
             </div>
           )}
 

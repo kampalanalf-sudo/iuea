@@ -14,6 +14,7 @@ export interface UserProfileAccount {
   displayRole: string;
   category: ProfileCategory;
   email: string;
+  password?: string;
   avatarBadge: string;
   accentColor: string;
   organization: string;
@@ -24,6 +25,7 @@ export interface UserProfileAccount {
   bio: string;
   permissions: string[];
   canSeeTechDetails: boolean; // Strictly true ONLY for 'tank_admin'
+  lastLoginAt?: string;
 }
 
 export interface ProfileManualSection {
