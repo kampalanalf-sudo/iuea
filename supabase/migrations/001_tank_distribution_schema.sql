@@ -8,8 +8,24 @@
 create extension if not exists "uuid-ossp";
 
 -- -----------------------------------------------------------------------------
--- 1. ARTIST / LABEL PROFILES (Linked to Supabase Auth / GitHub OAuth)
+-- 1. ARTIST / LABEL PROFILES & MULTI-ROLE USER ACCOUNTS
 -- -----------------------------------------------------------------------------
+create table if not exists public.user_profiles (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete set null,
+  name text not null,
+  display_role text not null,
+  role_category text not null check (role_category in ('tank_admin', 'artiste', 'music_manager', 'label_exec', 'producer_collab')),
+  email text not null unique,
+  organization text not null default 'Independent Roster',
+  location text not null default 'Kampala, UG',
+  associated_artists text[] not null default array[]::text[],
+  can_see_tech_details boolean not null default false,
+  -- Database-level constraint: ONLY tank_admin can ever have can_see_tech_details = true
+  constraint admin_only_tech_visibility check (can_see_tech_details = false or role_category = 'tank_admin'),
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.artist_profiles (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid references auth.users(id) on delete set null,

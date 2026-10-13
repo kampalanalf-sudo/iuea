@@ -1,6 +1,52 @@
 export type ReleaseFormat = 'Single' | 'EP' | 'Album';
 export type DeliveryStatus = 'Delivered' | 'In Review' | 'Processing' | 'Draft';
 
+export type ProfileCategory =
+  | 'tank_admin'
+  | 'artiste'
+  | 'music_manager'
+  | 'label_exec'
+  | 'producer_collab';
+
+export interface UserProfileAccount {
+  id: string;
+  name: string;
+  displayRole: string;
+  category: ProfileCategory;
+  email: string;
+  avatarBadge: string;
+  accentColor: string;
+  organization: string;
+  location: string;
+  /** For Artiste: their primary artist name; For Music Manager: array of managed artist names */
+  associatedArtists: string[];
+  commissionOrShareNote: string;
+  bio: string;
+  permissions: string[];
+  canSeeTechDetails: boolean; // Strictly true ONLY for 'tank_admin'
+}
+
+export interface ProfileManualSection {
+  stepNumber: string;
+  title: string;
+  navigationPath: string;
+  summary: string;
+  actionItems: string[];
+  proTip: string;
+}
+
+export interface ProfileNavigationManual {
+  category: ProfileCategory;
+  roleTitle: string;
+  subtitle: string;
+  pdfFileName: string;
+  targetAudience: string;
+  accessScopeSummary: string;
+  keyCapabilities: string[];
+  sections: ProfileManualSection[];
+  faq: { q: string; a: string }[];
+}
+
 export interface TrackItem {
   id: string;
   releaseId: string;
@@ -17,7 +63,7 @@ export interface TrackItem {
   sampleRate: string;
   integratedLufs: number;
   truePeakDbtp: number;
-  audioUrl?: string; // Object URL or Supabase Storage URL if uploaded by user
+  audioUrl?: string;
   synthPreset: 'cyber-bass' | 'afro-pulse' | 'berlin-techno' | 'neon-drift' | 'sub-heavy' | 'analog-horizon';
   streams: number;
 }

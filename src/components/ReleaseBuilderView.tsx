@@ -306,7 +306,7 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[#232836]">
           <div>
             <div className="text-xs font-mono-tech text-[#D4FF00] uppercase">
-              DDEX ERN 4.3 MASTER INGESTION WIZARD • {catalogNumber}
+              GLOBAL RELEASE BUILDER WIZARD • {catalogNumber}
             </div>
             <h1 className="text-2xl font-extrabold text-[#F3F4F6] mt-0.5">
               DISTRIBUTE NEW RELEASE

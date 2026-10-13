@@ -1,21 +1,26 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  BookOpen,
   CheckCircle2,
+  ChevronDown,
   Database,
   Disc3,
   DollarSign,
+  Download,
+  EyeOff,
   GitBranch,
   LayoutDashboard,
   Menu,
   PlusCircle,
-  Radio,
   ShieldCheck,
+  Users,
   Volume2,
   X,
 } from 'lucide-react';
 import { BottomAudioBar } from './components/BottomAudioBar';
 import { CatalogManagerView } from './components/CatalogManagerView';
 import { CommandOverviewView } from './components/CommandOverviewView';
+import { ProfilesAndManualsView } from './components/ProfilesAndManualsView';
 import { ReleaseBuilderView } from './components/ReleaseBuilderView';
 import { ReleaseInspectorModal } from './components/ReleaseInspectorModal';
 import { RoyaltiesSplitsView } from './components/RoyaltiesSplitsView';
@@ -26,6 +31,10 @@ import {
   INITIAL_RELEASES,
   INITIAL_ROYALTY_TRANSACTIONS,
 } from './data/seedCatalog';
+import {
+  INITIAL_USER_PROFILES,
+  PROFILE_CATEGORY_META,
+} from './data/userProfiles';
 import { testSupabaseConnection } from './lib/supabase';
 import {
   createNewRelease,
@@ -43,19 +52,26 @@ import {
   RoyaltyTransaction,
   SupabaseConfigState,
   TrackItem,
+  UserProfileAccount,
 } from './types/distribution';
 import { audioEngine } from './utils/audioEngine';
+import { downloadProfileManualPdf } from './utils/pdfManualGenerator';
 
 type NavView =
   | 'overview'
   | 'catalog'
   | 'builder'
   | 'royalties'
+  | 'profiles-manuals'
   | 'supabase-github';
+
+const LS_USER_PROFILES = 'tank_dist_user_profiles_v1';
+const LS_ACTIVE_PROFILE_ID = 'tank_dist_active_profile_id_v1';
 
 export function App() {
   const [activeView, setActiveView] = useState<NavView>('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
   const [releases, setReleases] = useState<ReleaseItem[]>(INITIAL_RELEASES);
   const [transactions, setTransactions] = useState<RoyaltyTransaction[]>(
@@ -70,6 +86,32 @@ export function App() {
   );
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Multi-Role User Profiles State
+  const [userProfiles, setUserProfiles] = useState<UserProfileAccount[]>(() => {
+    try {
+      const saved = localStorage.getItem(LS_USER_PROFILES);
+      if (saved) return JSON.parse(saved) as UserProfileAccount[];
+    } catch {
+      // ignore
+    }
+    return INITIAL_USER_PROFILES;
+  });
+
+  const [activeUserProfileId, setActiveUserProfileId] = useState<string>(() => {
+    try {
+      return (
+        localStorage.getItem(LS_ACTIVE_PROFILE_ID) ||
+        INITIAL_USER_PROFILES[0].id
+      );
+    } catch {
+      return INITIAL_USER_PROFILES[0].id;
+    }
+  });
+
+  const activeUserProfile =
+    userProfiles.find((p) => p.id === activeUserProfileId) || userProfiles[0];
+  const isAdmin = activeUserProfile.canSeeTechDetails;
+
   const [supabaseState, setSupabaseState] = useState<SupabaseConfigState>({
     url: '',
     anonKey: '',
@@ -81,7 +123,7 @@ export function App() {
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
+    setTimeout(() => setToastMessage(null), 4200);
   };
 
   const loadData = useCallback(async () => {
@@ -97,6 +139,42 @@ export function App() {
     testSupabaseConnection().then(setSupabaseState);
   }, [loadData]);
 
+  // If user switches to a non-admin profile while on the admin-only 'supabase-github' view, redirect to 'overview'
+  useEffect(() => {
+    if (!isAdmin && activeView === 'supabase-github') {
+      setActiveView('overview');
+    }
+  }, [isAdmin, activeView]);
+
+  const handleSelectUserProfile = (nextProf: UserProfileAccount) => {
+    setActiveUserProfileId(nextProf.id);
+    try {
+      localStorage.setItem(LS_ACTIVE_PROFILE_ID, nextProf.id);
+    } catch {
+      // ignore
+    }
+    setProfileDropdownOpen(false);
+    const meta = PROFILE_CATEGORY_META[nextProf.category];
+    showToast(
+      `Switched active profile to ${nextProf.name} (${meta.shortBadge})${
+        nextProf.canSeeTechDetails
+          ? ' — Full Tech & Cloud Access Enabled'
+          : ' — Tech Details Hidden'
+      }`
+    );
+  };
+
+  const handleCreateUserProfile = (newProf: UserProfileAccount) => {
+    const updated = [...userProfiles, newProf];
+    setUserProfiles(updated);
+    try {
+      localStorage.setItem(LS_USER_PROFILES, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+    handleSelectUserProfile(newProf);
+  };
+
   const handlePlayTrack = (track: TrackItem, release: ReleaseItem) => {
     audioEngine.playTrack(track, release.title, release.coverArtUrl);
   };
@@ -106,7 +184,7 @@ export function App() {
     setReleases(updated);
     setActiveView('overview');
     showToast(
-      `Release "${newRel.title}" (${newRel.upcCode}) deployed to ${newRel.storesSelected.length} DSP stores!`
+      `Release "${newRel.title}" (${newRel.upcCode}) deployed to ${newRel.storesSelected.length} streaming stores!`
     );
     if (newRel.tracks[0]) {
       audioEngine.playTrack(
@@ -154,12 +232,42 @@ export function App() {
     showToast('Artist & Label profile updated.');
   };
 
-  const navItems: { id: NavView; label: string; badge?: string; icon: React.FC<{ className?: string }> }[] = [
+  // Filter releases by role scope if applicable (or fallback to full catalog if none match so no view is ever empty)
+  const scopedReleases = React.useMemo(() => {
+    if (
+      activeUserProfile.category === 'tank_admin' ||
+      activeUserProfile.category === 'label_exec' ||
+      activeUserProfile.associatedArtists.includes('ALL CATALOG ARTISTS')
+    ) {
+      return releases;
+    }
+    const matched = releases.filter((r) => {
+      const artistMatch = activeUserProfile.associatedArtists.some(
+        (assoc) =>
+          r.primaryArtist.toLowerCase().includes(assoc.toLowerCase()) ||
+          r.featuredArtists.toLowerCase().includes(assoc.toLowerCase())
+      );
+      const splitMatch = r.splits.some((s) =>
+        s.collaboratorName
+          .toLowerCase()
+          .includes(activeUserProfile.name.toLowerCase())
+      );
+      return artistMatch || splitMatch;
+    });
+    return matched.length > 0 ? matched : releases;
+  }, [releases, activeUserProfile]);
+
+  const navItems: {
+    id: NavView;
+    label: string;
+    badge?: string;
+    icon: React.FC<{ className?: string }>;
+  }[] = [
     { id: 'overview', label: 'Command Overview', icon: LayoutDashboard },
     {
       id: 'catalog',
       label: 'Catalog & Releases',
-      badge: String(releases.length),
+      badge: String(scopedReleases.length),
       icon: Disc3,
     },
     {
@@ -170,12 +278,25 @@ export function App() {
     },
     { id: 'royalties', label: 'Royalties & Splits', icon: DollarSign },
     {
-      id: 'supabase-github',
-      label: 'Supabase & GitHub',
-      badge: supabaseState.mode === 'live-supabase' ? 'LIVE' : 'SYNC',
-      icon: Database,
+      id: 'profiles-manuals',
+      label: 'Profiles & Manuals',
+      badge: `${userProfiles.length} ROLES`,
+      icon: Users,
     },
+    // STRICT ADMIN-ONLY NAVIGATION ITEM: Only Tank Admin ever sees Supabase & GitHub!
+    ...(isAdmin
+      ? [
+          {
+            id: 'supabase-github' as NavView,
+            label: 'Supabase & GitHub',
+            badge: supabaseState.mode === 'live-supabase' ? 'LIVE' : 'ADMIN',
+            icon: Database,
+          },
+        ]
+      : []),
   ];
+
+  const activeCategoryMeta = PROFILE_CATEGORY_META[activeUserProfile.category];
 
   return (
     <div className="min-h-screen bg-[#0A0B0E] text-[#F3F4F6] flex flex-col">
@@ -209,15 +330,18 @@ export function App() {
                   </div>
                 </div>
               </div>
-              <span className="px-1.5 py-0.5 text-[9px] font-mono-tech bg-[#1C202B] text-[#9CA3AF] rounded border border-[#2B3145]">
-                v2.4
+              <span
+                className="px-1.5 py-0.5 text-[9px] font-mono-tech font-bold rounded text-[#0A0B0E]"
+                style={{ backgroundColor: activeUserProfile.accentColor }}
+              >
+                {activeCategoryMeta.shortBadge}
               </span>
             </div>
 
             {/* Primary Navigation */}
             <nav className="p-3.5 space-y-1">
               <div className="px-3 py-2 text-[10px] font-mono-tech uppercase tracking-wider text-[#6B7280]">
-                DISTRIBUTION CONSOLE
+                {activeCategoryMeta.shortBadge} WORKSPACE
               </div>
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -253,33 +377,49 @@ export function App() {
             </nav>
           </div>
 
-          {/* Bottom Sidebar Studio Status Card */}
-          <div className="p-4 space-y-3 border-t border-[#232836]">
-            <div className="p-3.5 rounded-xl bg-[#141720] border border-[#232836] space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-mono-tech">
-                <span className="text-[#9CA3AF] flex items-center gap-1.5">
+          {/* Bottom Sidebar Active User & PDF Manual Quick-Card */}
+          <div className="p-4 space-y-2.5 border-t border-[#232836]">
+            <div
+              onClick={() => setActiveView('profiles-manuals')}
+              className="p-3.5 rounded-xl bg-[#141720] hover:bg-[#191D28] border border-[#232836] space-y-1.5 cursor-pointer transition-colors"
+            >
+              <div className="flex items-center justify-between text-[10px] font-mono-tech">
+                <span className="text-[#9CA3AF] flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#10B981]" />
-                  LABEL PLAN
+                  {activeCategoryMeta.shortBadge}
                 </span>
-                <span className="text-[#D4FF00] font-bold">100% NET</span>
+                <span className="text-[#D4FF00] underline">Switch Role</span>
               </div>
               <div className="text-xs font-bold text-[#F3F4F6] truncate">
-                {profile.artistName}
+                {activeUserProfile.name}
               </div>
               <div className="text-[10px] font-mono-tech text-[#6B7280] truncate">
-                IPI: {profile.ipiNumber} • {profile.proAffiliation}
+                {activeUserProfile.organization}
               </div>
             </div>
 
-            {releases[0]?.tracks[0] && (
+            <button
+              onClick={() =>
+                downloadProfileManualPdf(activeUserProfile.category)
+              }
+              className="w-full py-2 px-3 rounded-lg bg-[#181B24] hover:bg-[#222736] border border-[#2A3042] text-xs font-mono-tech text-[#D4FF00] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download {activeCategoryMeta.shortBadge} PDF Manual
+            </button>
+
+            {scopedReleases[0]?.tracks[0] && (
               <button
                 onClick={() =>
-                  handlePlayTrack(releases[0].tracks[0], releases[0])
+                  handlePlayTrack(
+                    scopedReleases[0].tracks[0],
+                    scopedReleases[0]
+                  )
                 }
-                className="w-full py-2 px-3 rounded-lg bg-[#181B24] hover:bg-[#222736] border border-[#2A3042] text-xs font-mono-tech text-[#D4FF00] flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-1.5 px-3 rounded-lg bg-[#12151E] hover:bg-[#1C202E] border border-[#232836] text-[11px] font-mono-tech text-[#9CA3AF] hover:text-[#F3F4F6] flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Volume2 className="w-3.5 h-3.5" />
-                Test Studio Audio Engine
+                <Volume2 className="w-3.5 h-3.5 text-[#10B981]" />
+                Test Studio Audio Player
               </button>
             )}
           </div>
@@ -301,48 +441,162 @@ export function App() {
                 )}
               </button>
 
-              {/* Supabase & GitHub Integration Status Pills */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => setActiveView('supabase-github')}
-                  className="px-3 py-1.5 rounded-lg bg-[#141720] hover:bg-[#1B202C] border border-[#232836] flex items-center gap-2 text-xs font-mono-tech cursor-pointer transition-colors"
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      supabaseState.mode === 'live-supabase'
-                        ? 'bg-[#10B981]'
-                        : 'bg-[#D4FF00]'
-                    }`}
-                  />
-                  <Database className="w-3.5 h-3.5 text-[#10B981]" />
-                  <span className="text-[#F3F4F6]">
-                    Supabase:{' '}
-                    <strong className="text-[#10B981]">
-                      {supabaseState.mode === 'live-supabase'
-                        ? 'Live Connected'
-                        : 'PG Schema + Hybrid'}
-                    </strong>
-                  </span>
-                </button>
+              {/* STRICT ADMIN CHECK: Only Tank Admin sees Supabase & GitHub pills! */}
+              {isAdmin ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setActiveView('supabase-github')}
+                    className="px-3 py-1.5 rounded-lg bg-[#141720] hover:bg-[#1B202C] border border-[#232836] flex items-center gap-2 text-xs font-mono-tech cursor-pointer transition-colors"
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        supabaseState.mode === 'live-supabase'
+                          ? 'bg-[#10B981]'
+                          : 'bg-[#D4FF00]'
+                      }`}
+                    />
+                    <Database className="w-3.5 h-3.5 text-[#10B981]" />
+                    <span className="text-[#F3F4F6]">
+                      Supabase:{' '}
+                      <strong className="text-[#10B981]">
+                        {supabaseState.mode === 'live-supabase'
+                          ? 'Live Connected'
+                          : 'PG Schema + Hybrid'}
+                      </strong>
+                    </span>
+                  </button>
 
-                <button
-                  onClick={() => setActiveView('supabase-github')}
-                  className="hidden sm:flex px-3 py-1.5 rounded-lg bg-[#141720] hover:bg-[#1B202C] border border-[#232836] items-center gap-2 text-xs font-mono-tech cursor-pointer transition-colors"
-                >
-                  <GitBranch className="w-3.5 h-3.5 text-[#F3F4F6]" />
-                  <span className="text-[#9CA3AF]">
-                    kampalanalf-sudo/iuea
+                  <button
+                    onClick={() => setActiveView('supabase-github')}
+                    className="hidden sm:flex px-3 py-1.5 rounded-lg bg-[#141720] hover:bg-[#1B202C] border border-[#232836] items-center gap-2 text-xs font-mono-tech cursor-pointer transition-colors"
+                  >
+                    <GitBranch className="w-3.5 h-3.5 text-[#F3F4F6]" />
+                    <span className="text-[#9CA3AF]">
+                      kampalanalf-sudo/iuea
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                /* Non-Admin Clean Music Industry Context Pill */
+                <div className="flex items-center gap-2">
+                  <div className="px-3 py-1.5 rounded-lg bg-[#141720] border border-[#232836] flex items-center gap-2 text-xs">
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: activeUserProfile.accentColor }}
+                    />
+                    <span className="font-semibold text-[#F3F4F6]">
+                      {activeUserProfile.organization}
+                    </span>
+                    <span className="hidden md:inline text-[#6B7280] font-mono-tech">
+                      • {activeCategoryMeta.shortBadge} PORTAL
+                    </span>
+                  </div>
+                  <span className="hidden xl:inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#10B981]/10 border border-[#10B981]/30 text-[10px] font-mono-tech text-[#10B981]">
+                    <EyeOff className="w-3 h-3" />
+                    Tech-Free Workspace
                   </span>
-                </button>
-              </div>
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#141720] border border-[#232836] text-xs font-mono-tech">
-                <Radio className="w-3.5 h-3.5 text-[#D4FF00]" />
-                <span className="text-[#9CA3AF]">DDEX NODE:</span>
-                <span className="text-[#10B981] font-bold">ONLINE</span>
+            {/* Right Header Controls: Interactive Profile Switcher + PDF Manual + New Release */}
+            <div className="flex items-center gap-2.5">
+              {/* Role & Profile Switcher Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="px-3 py-1.5 rounded-lg bg-[#141720] hover:bg-[#1C202E] border border-[#2A3042] flex items-center gap-2 text-xs cursor-pointer transition-colors"
+                  title="Switch User Profile / Role Category"
+                >
+                  <span
+                    className="w-6 h-6 rounded-md flex items-center justify-center font-mono-tech font-bold text-[10px] text-[#0A0B0E]"
+                    style={{ backgroundColor: activeUserProfile.accentColor }}
+                  >
+                    {activeUserProfile.avatarBadge}
+                  </span>
+                  <div className="hidden sm:block text-left">
+                    <div className="text-[11px] font-bold text-[#F3F4F6] leading-tight">
+                      {activeUserProfile.name}
+                    </div>
+                    <div
+                      className="text-[9px] font-mono-tech leading-tight"
+                      style={{ color: activeUserProfile.accentColor }}
+                    >
+                      {activeCategoryMeta.shortBadge}
+                    </div>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-[#9CA3AF]" />
+                </button>
+
+                {profileDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-80 rounded-xl bg-[#12151E] border border-[#2E3548] shadow-2xl py-2 z-50">
+                    <div className="px-3.5 py-2 border-b border-[#232836] flex items-center justify-between">
+                      <span className="text-[10px] font-mono-tech uppercase text-[#9CA3AF]">
+                        SWITCH ACTIVE PROFILE ({userProfiles.length})
+                      </span>
+                      <button
+                        onClick={() => {
+                          setProfileDropdownOpen(false);
+                          setActiveView('profiles-manuals');
+                        }}
+                        className="text-[10px] font-mono-tech text-[#D4FF00] hover:underline cursor-pointer"
+                      >
+                        Manage All →
+                      </button>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto divide-y divide-[#1C202B]">
+                      {userProfiles.map((prof) => {
+                        const isSelected = prof.id === activeUserProfile.id;
+                        const catMeta = PROFILE_CATEGORY_META[prof.category];
+                        return (
+                          <button
+                            key={prof.id}
+                            onClick={() => handleSelectUserProfile(prof)}
+                            className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between hover:bg-[#1A1F2E] cursor-pointer transition-colors ${
+                              isSelected ? 'bg-[#181D2B]' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span
+                                className="w-7 h-7 rounded-lg flex items-center justify-center font-mono-tech font-bold text-[10px] text-[#0A0B0E] shrink-0"
+                                style={{ backgroundColor: prof.accentColor }}
+                              >
+                                {prof.avatarBadge}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-[#F3F4F6] truncate">
+                                  {prof.name}
+                                </div>
+                                <div className="text-[10px] font-mono-tech text-[#9CA3AF] truncate">
+                                  {catMeta.shortBadge} •{' '}
+                                  {prof.canSeeTechDetails
+                                    ? 'Tech Visible'
+                                    : 'Tech Hidden'}
+                                </div>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono-tech bg-[#D4FF00] text-[#0A0B0E] font-bold shrink-0">
+                                ACTIVE
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Quick Manual Button */}
+              <button
+                onClick={() => setActiveView('profiles-manuals')}
+                className="hidden md:flex px-3 py-2 rounded-lg bg-[#141720] hover:bg-[#1C202E] border border-[#232836] items-center gap-1.5 text-xs font-mono-tech text-[#D4FF00] cursor-pointer"
+                title="View Role Profiles & PDF Navigation Manuals"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Manuals</span>
+              </button>
 
               <button
                 onClick={() => setActiveView('builder')}
@@ -387,8 +641,9 @@ export function App() {
           <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-28 max-w-[1560px] w-full mx-auto studio-grid-bg">
             {activeView === 'overview' && (
               <CommandOverviewView
-                releases={releases}
+                releases={scopedReleases}
                 payouts={payouts}
+                activeProfile={activeUserProfile}
                 onPlayTrack={handlePlayTrack}
                 onSelectRelease={setInspectedRelease}
                 onNavigateNewRelease={() => setActiveView('builder')}
@@ -398,7 +653,7 @@ export function App() {
 
             {activeView === 'catalog' && (
               <CatalogManagerView
-                releases={releases}
+                releases={scopedReleases}
                 onPlayTrack={handlePlayTrack}
                 onSelectRelease={setInspectedRelease}
                 onNavigateNewRelease={() => setActiveView('builder')}
@@ -415,14 +670,23 @@ export function App() {
 
             {activeView === 'royalties' && (
               <RoyaltiesSplitsView
-                releases={releases}
+                releases={scopedReleases}
                 transactions={transactions}
                 payouts={payouts}
                 onRequestPayout={handleRequestPayout}
               />
             )}
 
-            {activeView === 'supabase-github' && (
+            {activeView === 'profiles-manuals' && (
+              <ProfilesAndManualsView
+                profiles={userProfiles}
+                activeProfile={activeUserProfile}
+                onSelectProfile={handleSelectUserProfile}
+                onCreateProfile={handleCreateUserProfile}
+              />
+            )}
+
+            {activeView === 'supabase-github' && isAdmin && (
               <SupabaseGithubView
                 supabaseState={supabaseState}
                 onSupabaseStateChange={setSupabaseState}
@@ -438,6 +702,7 @@ export function App() {
       {/* Release Detail Inspector Modal */}
       <ReleaseInspectorModal
         release={inspectedRelease}
+        isAdmin={isAdmin}
         onClose={() => setInspectedRelease(null)}
         onPlayTrack={handlePlayTrack}
         onUpdateStatus={handleUpdateReleaseStatus}
@@ -445,7 +710,7 @@ export function App() {
       />
 
       {/* Persistent Studio Bottom Audio Bar */}
-      <BottomAudioBar releases={releases} />
+      <BottomAudioBar releases={scopedReleases} />
     </div>
   );
 }

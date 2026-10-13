@@ -380,8 +380,8 @@ export const RoyaltiesSplitsView: React.FC<RoyaltiesSplitsViewProps> = ({
             <div className="flex items-center gap-2 text-[#10B981]">
               <ShieldCheck className="w-4 h-4 shrink-0" />
               <span className="font-mono-tech">
-                Supabase `royalty_splits` table enforces 100.00% mathematical sum
-                constraint
+                Automated Split Protection: 100.00% of net streaming payouts are
+                routed directly to verified collaborators
               </span>
             </div>
             <ArrowUpRight className="w-4 h-4 text-[#6B7280]" />

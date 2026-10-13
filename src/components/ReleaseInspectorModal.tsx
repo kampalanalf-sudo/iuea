@@ -19,6 +19,7 @@ import { generateDdexXmlManifest } from '../utils/artworkGenerator';
 
 interface ReleaseInspectorModalProps {
   release: ReleaseItem | null;
+  isAdmin: boolean;
   onClose: () => void;
   onPlayTrack: (track: TrackItem, release: ReleaseItem) => void;
   onUpdateStatus: (releaseId: string, status: DeliveryStatus) => void;
@@ -27,6 +28,7 @@ interface ReleaseInspectorModalProps {
 
 export const ReleaseInspectorModal: React.FC<ReleaseInspectorModalProps> = ({
   release,
+  isAdmin,
   onClose,
   onPlayTrack,
   onUpdateStatus,
@@ -142,7 +144,7 @@ export const ReleaseInspectorModal: React.FC<ReleaseInspectorModalProps> = ({
               { id: 'tracks', label: `Master Tracks (${release.tracks.length})`, icon: Disc },
               {
                 id: 'stores',
-                label: `DSP Store Delivery (${release.storesSelected.length})`,
+                label: `Store Delivery (${release.storesSelected.length})`,
                 icon: Globe2,
               },
               {
@@ -150,7 +152,9 @@ export const ReleaseInspectorModal: React.FC<ReleaseInspectorModalProps> = ({
                 label: `Royalty Splits (${splitSum.toFixed(0)}%)`,
                 icon: Users,
               },
-              { id: 'ddex', label: 'DDEX ERN 4.3 XML', icon: Code2 },
+              ...(isAdmin
+                ? [{ id: 'ddex', label: 'DDEX ERN 4.3 XML (Admin)', icon: Code2 }]
+                : []),
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -173,25 +177,27 @@ export const ReleaseInspectorModal: React.FC<ReleaseInspectorModalProps> = ({
             })}
           </div>
 
-          {/* Pipeline State Changer */}
-          <div className="flex items-center gap-2 py-2">
-            <span className="text-[11px] font-mono-tech text-[#6B7280]">
-              PIPELINE STATE:
-            </span>
-            {(['Delivered', 'In Review', 'Draft'] as DeliveryStatus[]).map((st) => (
-              <button
-                key={st}
-                onClick={() => onUpdateStatus(release.id, st)}
-                className={`px-2.5 py-1 rounded text-[11px] font-mono-tech cursor-pointer transition-colors ${
-                  release.status === st
-                    ? 'bg-[#D4FF00] text-[#0A0B0E] font-bold'
-                    : 'bg-[#1C202B] text-[#9CA3AF] hover:text-[#F3F4F6]'
-                }`}
-              >
-                {st}
-              </button>
-            ))}
-          </div>
+          {/* Pipeline State Changer (Admin Only) */}
+          {isAdmin && (
+            <div className="flex items-center gap-2 py-2">
+              <span className="text-[11px] font-mono-tech text-[#6B7280]">
+                ADMIN PIPELINE STATE:
+              </span>
+              {(['Delivered', 'In Review', 'Draft'] as DeliveryStatus[]).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => onUpdateStatus(release.id, st)}
+                  className={`px-2.5 py-1 rounded text-[11px] font-mono-tech cursor-pointer transition-colors ${
+                    release.status === st
+                      ? 'bg-[#D4FF00] text-[#0A0B0E] font-bold'
+                      : 'bg-[#1C202B] text-[#9CA3AF] hover:text-[#F3F4F6]'
+                  }`}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Body Content */}

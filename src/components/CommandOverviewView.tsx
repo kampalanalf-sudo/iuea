@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Activity,
   ArrowUpRight,
+  BookOpen,
   Check,
   CheckCircle2,
   Clock,
@@ -16,16 +17,20 @@ import {
   Sparkles,
   TrendingUp,
 } from 'lucide-react';
+import { PROFILE_CATEGORY_META } from '../data/userProfiles';
 import {
   DeliveryStatus,
   PayoutRequest,
   ReleaseItem,
   TrackItem,
+  UserProfileAccount,
 } from '../types/distribution';
+import { downloadProfileManualPdf } from '../utils/pdfManualGenerator';
 
 interface CommandOverviewViewProps {
   releases: ReleaseItem[];
   payouts: PayoutRequest[];
+  activeProfile: UserProfileAccount;
   onPlayTrack: (track: TrackItem, release: ReleaseItem) => void;
   onSelectRelease: (release: ReleaseItem) => void;
   onNavigateNewRelease: () => void;
@@ -61,6 +66,7 @@ const TELEMETRY_SERIES: Record<
 export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
   releases,
   payouts,
+  activeProfile,
   onPlayTrack,
   onSelectRelease,
   onNavigateNewRelease,
@@ -70,6 +76,9 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
   const [metricMode, setMetricMode] = useState<'streams' | 'revenue'>('streams');
   const [statusFilter, setStatusFilter] = useState<'All' | DeliveryStatus>('All');
   const [copiedUpc, setCopiedUpc] = useState<string | null>(null);
+
+  const isAdmin = activeProfile.canSeeTechDetails;
+  const roleMeta = PROFILE_CATEGORY_META[activeProfile.category];
 
   const totalStreams = releases.reduce((acc, r) => acc + r.totalStreams, 0);
   const grossRoyalties = releases.reduce((acc, r) => acc + r.totalRoyalties, 0);
@@ -96,28 +105,66 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
     setTimeout(() => setCopiedUpc(null), 1600);
   };
 
+  const getHeroTitle = () => {
+    switch (activeProfile.category) {
+      case 'tank_admin':
+        return 'TANK ADMIN OPERATIONS CONSOLE';
+      case 'artiste':
+        return `ARTISTE STUDIO PORTAL — ${activeProfile.name.toUpperCase()}`;
+      case 'music_manager':
+        return `ROSTER MANAGEMENT DESK — ${activeProfile.organization.toUpperCase()}`;
+      case 'label_exec':
+        return `LABEL & A&R COMMAND — ${activeProfile.organization.toUpperCase()}`;
+      case 'producer_collab':
+        return `PRODUCER & COLLABORATOR HUB — ${activeProfile.name.toUpperCase()}`;
+    }
+  };
+
+  const getHeroSubtitle = () => {
+    switch (activeProfile.category) {
+      case 'tank_admin':
+        return 'Full system administration: global lossless master ingestion, automated 100% royalty routing, user profile governance, and live Supabase + GitHub cloud telemetry.';
+      case 'artiste':
+        return 'Distribute your music to 150+ global streaming platforms, design studio cover artwork, manage collaborator splits, and collect 100% of your net streaming royalties.';
+      case 'music_manager':
+        return `Active Roster (${activeProfile.associatedArtists.join(', ')}): Coordinate multi-artist release schedules, monitor global streaming velocity, and audit management commission splits.`;
+      case 'label_exec':
+        return 'Executive catalog oversight: manage imprint releases, master copyrights (℗ & ©), global store delivery footprints, and quarterly label royalty pools.';
+      case 'producer_collab':
+        return 'Audition credited 24-bit studio masters, verify your locked producer & engineering royalty split percentages, and cash out earnings directly.';
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Studio Hero Banner */}
+      {/* Role-Adaptive Hero Banner */}
       <div className="relative rounded-xl bg-gradient-to-r from-[#12151E] via-[#161A26] to-[#12151E] border border-[#252B3B] p-6 overflow-hidden">
         <div className="absolute -right-12 -top-12 w-72 h-72 rounded-full bg-[#D4FF00]/5 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div>
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#D4FF00]/10 border border-[#D4FF00]/30 text-[#D4FF00] text-[11px] font-mono-tech font-semibold mb-2.5">
               <Radio className="w-3.5 h-3.5 animate-pulse" />
-              DDEX ERN 4.3 DIRECT NODE • SUPABASE + GITHUB SYNC ACTIVE
+              {isAdmin
+                ? 'TANK ADMIN EXCLUSIVE • SUPABASE + GITHUB + DDEX ERN 4.3 NODE ACTIVE'
+                : `${roleMeta.shortBadge} PORTAL • ${activeProfile.commissionOrShareNote.toUpperCase()}`}
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F3F4F6] tracking-tight">
-              TANK DISTRIBUTION CONSOLE
+              {getHeroTitle()}
             </h1>
             <p className="text-sm text-[#9CA3AF] mt-1 max-w-2xl">
-              Global lossless master ingestion, automated 100% collaborator royalty
-              routing, and real-time DSP store telemetry across 150+ streaming
-              networks.
+              {getHeroSubtitle()}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => downloadProfileManualPdf(activeProfile.category)}
+              className="px-3.5 py-2.5 rounded-lg bg-[#1A1E2B] hover:bg-[#232838] border border-[#2C3347] text-xs font-mono-tech font-semibold text-[#D4FF00] flex items-center gap-2 transition-colors cursor-pointer"
+              title="Download PDF Site Navigation Manual for Your Role"
+            >
+              <BookOpen className="w-4 h-4" />
+              {roleMeta.shortBadge} PDF Manual
+            </button>
             <button
               onClick={onNavigateRoyalties}
               className="px-4 py-2.5 rounded-lg bg-[#1A1E2B] hover:bg-[#232838] border border-[#2C3347] text-xs font-semibold text-[#F3F4F6] flex items-center gap-2 transition-colors cursor-pointer"
@@ -156,7 +203,7 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
               <ArrowUpRight className="w-3.5 h-3.5" />
               +24.8% vs prior 30d
             </span>
-            <span className="text-[#6B7280] font-mono-tech">152 DSPs Live</span>
+            <span className="text-[#6B7280] font-mono-tech">152 Stores Live</span>
           </div>
         </div>
 
@@ -179,7 +226,7 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
           </div>
           <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-[#1F2432] text-xs">
             <span className="text-[#D4FF00] font-mono-tech font-semibold">
-              100% Artist Share
+              100% Creator Share
             </span>
             <span className="text-[#6B7280] font-mono-tech">
               Gross: ${grossRoyalties.toLocaleString()}
@@ -205,7 +252,7 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
               {totalTracks} Lossless Tracks
             </span>
             <span className="text-[#10B981] font-mono-tech">
-              {deliveredReleases} Live on DSPs
+              {deliveredReleases} Live in Stores
             </span>
           </div>
         </div>
@@ -214,20 +261,20 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
         <div className="p-5 rounded-xl bg-[#141720] border border-[#232836] hover:border-[#32394E] transition-colors">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-[#9CA3AF]">
-              DDEX Delivery SLA
+              {isAdmin ? 'DDEX Delivery SLA' : 'Global Store Footprint'}
             </span>
             <div className="w-8 h-8 rounded-lg bg-[#38BDF8]/10 border border-[#38BDF8]/25 flex items-center justify-center">
               <Globe2 className="w-4 h-4 text-[#38BDF8]" />
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-mono-tech font-bold text-[#F3F4F6] mt-2">
-            99.8% Pass
+            99.8% Live
           </div>
           <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-[#1F2432] text-xs">
             <span className="text-[#38BDF8] font-mono-tech">
               Content ID Protected
             </span>
-            <span className="text-[#6B7280] font-mono-tech">-14.0 LUFS Spec</span>
+            <span className="text-[#6B7280] font-mono-tech">-14.0 LUFS Master</span>
           </div>
         </div>
       </div>
@@ -242,12 +289,12 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-[#D4FF00]" />
                   <h2 className="text-base font-bold text-[#F3F4F6] uppercase tracking-wide">
-                    Global DSP Telemetry & Revenue Velocity
+                    Global Streaming & Royalty Velocity
                   </h2>
                 </div>
                 <p className="text-xs text-[#9CA3AF] mt-0.5">
-                  Aggregated real-time streams and settled royalty inflows across
-                  Spotify, Apple Music, TikTok, Beatport & Audiomack
+                  Real-time streams and settled royalty inflows across Spotify,
+                  Apple Music, TikTok, Beatport & Audiomack
                 </p>
               </div>
 
@@ -357,20 +404,20 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
           </div>
         </div>
 
-        {/* Right 35% (4 cols): DSP Store Delivery Pipeline & QC Log */}
+        {/* Right 35% (4 cols): Store Delivery Pipeline */}
         <div className="lg:col-span-4 p-6 rounded-xl bg-[#141720] border border-[#232836] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#232836]">
               <div>
                 <h2 className="text-base font-bold text-[#F3F4F6] uppercase tracking-wide">
-                  DDEX Store Pipeline
+                  {isAdmin ? 'DDEX Store Pipeline' : 'Store Delivery Tracker'}
                 </h2>
                 <p className="text-xs text-[#9CA3AF] mt-0.5">
-                  Real-time ingestion & automated QC checks
+                  Live release delivery status across streaming stores
                 </p>
               </div>
               <span className="px-2 py-0.5 rounded text-[10px] font-mono-tech font-bold bg-[#10B981]/15 text-[#10B981]">
-                ERN 4.3 LIVE
+                {isAdmin ? 'ERN 4.3 LIVE' : 'VERIFIED'}
               </span>
             </div>
 
@@ -407,7 +454,7 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
                     <div className="flex items-center justify-between text-[11px] font-mono-tech text-[#9CA3AF] mt-1.5">
                       <span>UPC: {rel.upcCode}</span>
                       <span>
-                        {rel.storesDelivered}/{rel.storesSelected.length} DSPs
+                        {rel.storesDelivered}/{rel.storesSelected.length} Stores
                       </span>
                     </div>
                     <div className="w-full h-1.5 bg-[#0F1219] rounded-full overflow-hidden mt-2">
@@ -432,7 +479,7 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
                 <Sparkles className="w-4 h-4 text-[#D4FF00] shrink-0" />
                 <div className="text-xs">
                   <div className="font-semibold text-[#F3F4F6]">
-                    Ready to ship a new master?
+                    Ready to ship a new release?
                   </div>
                   <div className="text-[#6B7280]">
                     Auto-assigns free UPC & ISRC codes
@@ -458,8 +505,8 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
               Active Distribution Catalog & Master Registry
             </h2>
             <p className="text-xs text-[#9CA3AF] mt-0.5">
-              Click any release to inspect tracks, DDEX XML manifest, store links,
-              or play studio audio
+              Click any release to inspect tracks, store delivery status, royalty
+              splits, or play studio audio
             </p>
           </div>
 
@@ -487,7 +534,7 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
                 <th className="py-3.5 px-5">Release / Artist</th>
                 <th className="py-3.5 px-4">Format</th>
                 <th className="py-3.5 px-4">UPC / First ISRC</th>
-                <th className="py-3.5 px-4">DSP Status</th>
+                <th className="py-3.5 px-4">Store Status</th>
                 <th className="py-3.5 px-4 text-right">Total Streams</th>
                 <th className="py-3.5 px-4 text-right">Net Royalties</th>
                 <th className="py-3.5 px-5 text-right">Actions</th>

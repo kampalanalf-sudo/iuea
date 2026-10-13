@@ -67,8 +67,8 @@ export const CatalogManagerView: React.FC<CatalogManagerViewProps> = ({
               CATALOG & ISRC / UPC REGISTRY
             </h1>
             <p className="text-xs text-[#9CA3AF] mt-0.5">
-              Manage master recordings, DDEX ERN 4.3 packages, UPC barcodes, and
-              per-store ingestion logs
+              Manage master recordings, UPC barcodes, track ISRC codes, and
+              global store delivery statuses
             </p>
           </div>
           <button
