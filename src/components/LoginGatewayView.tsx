@@ -6,16 +6,12 @@ import {
   CheckCircle2,
   Disc3,
   Download,
-  Eye,
-  EyeOff,
-  KeyRound,
   Lock,
   LogIn,
   Mail,
   ShieldCheck,
   Sparkles,
   UserPlus,
-  Users,
 } from 'lucide-react';
 import { PROFILE_CATEGORY_META } from '../data/userProfiles';
 import {
@@ -43,19 +39,18 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
     'all' | ProfileCategory
   >('all');
 
-  // Sign-in form state
-  const [email, setEmail] = useState('artist@kampalanights.ug');
-  const [password, setPassword] = useState('Artiste#2026');
-  const [showPassword, setShowPassword] = useState(false);
+  // Sign-in form state (starts completely blank — no placeholders, no passwords)
+  const [email, setEmail] = useState('');
+  const [selectedCategory, setSelectedCategory] =
+    useState<ProfileCategory>('artiste');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Registration form state
+  // Registration form state (starts completely blank — no placeholders, no passwords)
   const [regCategory, setRegCategory] = useState<ProfileCategory>('artiste');
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
   const [regOrg, setRegOrg] = useState('');
-  const [regLocation, setRegLocation] = useState('Kampala, Uganda');
+  const [regLocation, setRegLocation] = useState('');
   const [regArtists, setRegArtists] = useState('');
 
   const visibleAccounts =
@@ -68,44 +63,67 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
     setErrorMsg(null);
 
     const normalizedEmail = email.trim().toLowerCase();
-    const matched = profiles.find(
+    if (!normalizedEmail) {
+      setErrorMsg('Please enter your email address or select a role portal.');
+      return;
+    }
+
+    const matchedByEmail = profiles.find(
       (p) => p.email.toLowerCase() === normalizedEmail
     );
 
-    if (!matched) {
-      setErrorMsg(
-        'No account found with that email address. Click any role account card on the left to fill valid credentials, or switch to "Register New Account".'
-      );
+    if (matchedByEmail) {
+      onAuthenticated({
+        ...matchedByEmail,
+        lastLoginAt: new Date().toISOString(),
+      });
       return;
     }
 
-    const expectedPassword = matched.password || 'Tank#2026';
-    if (password !== expectedPassword) {
-      setErrorMsg(
-        `Invalid password for ${matched.email}. (Hint: Use "${expectedPassword}" or click "Fill Credentials" on the account card.)`
-      );
-      return;
-    }
+    // If the user typed a new email, sign them into the selected role category directly
+    const meta = PROFILE_CATEGORY_META[selectedCategory];
+    const nameFromEmail = normalizedEmail.split('@')[0] || meta.shortBadge;
+    const initials = nameFromEmail.slice(0, 2).toUpperCase();
+    const isTankAdmin = selectedCategory === 'tank_admin';
 
-    onAuthenticated({
-      ...matched,
+    const dynamicAccount: UserProfileAccount = {
+      id: `usr-${Date.now()}`,
+      name: nameFromEmail,
+      displayRole: meta.label,
+      category: selectedCategory,
+      email: normalizedEmail,
+      avatarBadge: initials,
+      accentColor: meta.color,
+      organization: meta.shortBadge,
+      location: 'Global',
+      associatedArtists: isTankAdmin ? ['ALL CATALOG ARTISTS'] : [],
+      commissionOrShareNote: isTankAdmin
+        ? 'Platform Administrator • Full System Privileges'
+        : `${meta.shortBadge} Account • 100% Net Royalty Portal`,
+      bio: meta.description,
+      permissions:
+        profiles.find((p) => p.category === selectedCategory)?.permissions ||
+        [],
+      canSeeTechDetails: isTankAdmin,
       lastLoginAt: new Date().toISOString(),
-    });
+    };
+
+    onRegisterProfile(dynamicAccount);
   };
 
-  const handleFillAccount = (acc: UserProfileAccount) => {
+  const handleSelectAccountCard = (acc: UserProfileAccount) => {
     setAuthMode('signin');
     setErrorMsg(null);
     setEmail(acc.email);
-    setPassword(acc.password || 'Tank#2026');
+    setSelectedCategory(acc.category);
   };
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
-    if (!regName.trim() || !regEmail.trim() || !regPassword.trim()) {
-      setErrorMsg('Please complete all required fields.');
+    if (!regName.trim() || !regEmail.trim()) {
+      setErrorMsg('Please enter your name and email address.');
       return;
     }
 
@@ -114,7 +132,7 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
     );
     if (exists) {
       setErrorMsg(
-        'An account with this email already exists. Please sign in instead.'
+        'An account with this email already exists. Please use Sign In.'
       );
       return;
     }
@@ -177,10 +195,9 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
       displayRole: meta.label,
       category: regCategory,
       email: regEmail.trim(),
-      password: regPassword,
       avatarBadge: initials || 'TK',
       accentColor: meta.color,
-      organization: regOrg.trim() || 'Independent Roster',
+      organization: regOrg.trim() || meta.shortBadge,
       location: regLocation.trim() || 'Global',
       associatedArtists: associated,
       commissionOrShareNote: isTankAdmin
@@ -197,7 +214,6 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
 
   return (
     <div className="min-h-screen bg-[#0A0B0E] text-[#F3F4F6] flex flex-col justify-between studio-grid-bg relative overflow-hidden">
-      {/* Subtle Ambient Studio Glow */}
       <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[#D4FF00]/5 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-[#10B981]/5 blur-3xl pointer-events-none" />
 
@@ -231,21 +247,19 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
 
       {/* Main 2-Column Login & Role Directory Container */}
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left 7 Columns: Role Portal Directory & 1-Click Demo Credentials */}
+        {/* Left 7 Columns: Role Portal Directory */}
         <div className="lg:col-span-7 space-y-6">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D4FF00]/10 border border-[#D4FF00]/30 text-[#D4FF00] text-xs font-mono-tech font-semibold">
               <Disc3 className="w-3.5 h-3.5 animate-spin" />
-              MULTI-ROLE ACCESS GATEWAY • 150+ STREAMING STORES
+              MULTI-ROLE ACCESS GATEWAY
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-[#F3F4F6] tracking-tight">
-              SELECT YOUR PORTAL OR SIGN IN
+              SELECT YOUR ROLE PORTAL
             </h1>
             <p className="text-sm text-[#9CA3AF] max-w-2xl leading-relaxed">
-              Tank Distribution provides dedicated workspaces for **Artistes**,
-              **Music Managers**, **Record Labels & A&R**, **Producers**, and
-              **Tank Admins**. Click any account below to auto-fill its login
-              credentials or sign in immediately.
+              Choose your role profile below to enter your workspace or download
+              your role&apos;s site navigation manual.
             </p>
           </div>
 
@@ -280,17 +294,17 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
             )}
           </div>
 
-          {/* Account Cards Grid */}
+          {/* Role Portal Cards Grid (Zero Passwords Shown) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {visibleAccounts.map((acc) => {
               const catMeta = PROFILE_CATEGORY_META[acc.category];
               const isSelectedEmail =
-                email.toLowerCase() === acc.email.toLowerCase();
+                email.trim().toLowerCase() === acc.email.toLowerCase();
 
               return (
                 <div
                   key={acc.id}
-                  onClick={() => handleFillAccount(acc)}
+                  onClick={() => handleSelectAccountCard(acc)}
                   className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                     isSelectedEmail
                       ? 'bg-[#181E2C] border-[#D4FF00] shadow-[0_0_24px_rgba(212,255,0,0.12)]'
@@ -311,7 +325,7 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                             {acc.name}
                           </div>
                           <div className="text-[11px] text-[#9CA3AF] truncate">
-                            {acc.organization}
+                            {acc.displayRole}
                           </div>
                         </div>
                       </div>
@@ -323,20 +337,9 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                       </span>
                     </div>
 
-                    <div className="mt-3 p-2.5 rounded-lg bg-[#0E1117] border border-[#1E2330] font-mono-tech text-[11px] space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#6B7280]">EMAIL:</span>
-                        <span className="text-[#F3F4F6] truncate ml-2">
-                          {acc.email}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[#6B7280]">PASSWORD:</span>
-                        <span className="text-[#D4FF00]">
-                          {acc.password || 'Tank#2026'}
-                        </span>
-                      </div>
-                    </div>
+                    <p className="mt-3 text-xs text-[#9CA3AF] line-clamp-2">
+                      {acc.bio}
+                    </p>
                   </div>
 
                   <div className="mt-3 pt-2.5 border-t border-[#1E2330] flex items-center justify-between gap-2">
@@ -347,10 +350,9 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                         downloadProfileManualPdf(acc.category);
                       }}
                       className="text-[11px] font-mono-tech text-[#9CA3AF] hover:text-[#D4FF00] flex items-center gap-1 cursor-pointer"
-                      title="Download PDF Site Navigation Manual for this role"
                     >
                       <Download className="w-3 h-3" />
-                      PDF Guide
+                      PDF Manual
                     </button>
 
                     <button
@@ -364,7 +366,7 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                       }}
                       className="px-3 py-1.5 rounded-lg bg-[#D4FF00] hover:bg-[#e1ff33] text-[#0A0B0E] font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                     >
-                      <span>Instant Sign In</span>
+                      <span>Enter Portal</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -374,7 +376,7 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
           </div>
         </div>
 
-        {/* Right 5 Columns: Dedicated Login & Registration Box */}
+        {/* Right 5 Columns: Passwordless Sign In & Account Registration Box */}
         <div className="lg:col-span-5">
           <div className="rounded-2xl bg-[#141720] border border-[#2A3042] shadow-2xl overflow-hidden">
             {/* Mode Switcher Tabs */}
@@ -423,12 +425,41 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                 <form onSubmit={handleSignInSubmit} className="space-y-5">
                   <div>
                     <h2 className="text-xl font-extrabold text-[#F3F4F6]">
-                      Welcome Back
+                      Sign In
                     </h2>
                     <p className="text-xs text-[#9CA3AF] mt-1">
-                      Enter your credentials or select a user card on the left
-                      to access your role-specific workspace.
+                      Select your role category and enter your email address to
+                      access your workspace.
                     </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono-tech uppercase text-[#9CA3AF] mb-1.5">
+                      Role Category
+                    </label>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) =>
+                        setSelectedCategory(e.target.value as ProfileCategory)
+                      }
+                      className="w-full h-11 px-3.5 rounded-xl bg-[#0A0B0E] border border-[#2A3042] text-xs font-bold text-[#D4FF00] outline-none"
+                    >
+                      <option value="artiste">
+                        Artiste / Recording Artist
+                      </option>
+                      <option value="music_manager">
+                        Music Manager
+                      </option>
+                      <option value="label_exec">
+                        Record Label & A&R Executive
+                      </option>
+                      <option value="producer_collab">
+                        Producer / Songwriter / Collaborator
+                      </option>
+                      <option value="tank_admin">
+                        Tank Admin
+                      </option>
+                    </select>
                   </div>
 
                   <div>
@@ -442,47 +473,11 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@tankdistribution.io"
                         className="w-full h-11 pl-10 pr-4 rounded-xl bg-[#0A0B0E] border border-[#2A3042] focus:border-[#D4FF00] text-sm font-mono-tech text-[#F3F4F6] outline-none"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-mono-tech uppercase text-[#9CA3AF]">
-                        Password
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-[11px] font-mono-tech text-[#D4FF00] hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        {showPassword ? (
-                          <>
-                            <EyeOff className="w-3 h-3" /> Hide
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="w-3 h-3" /> Show
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <KeyRound className="w-4 h-4 text-[#6B7280] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full h-11 pl-10 pr-4 rounded-xl bg-[#0A0B0E] border border-[#2A3042] focus:border-[#D4FF00] text-sm font-mono-tech text-[#F3F4F6] outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Preview Matched Role Pill */}
                   {(() => {
                     const matched = profiles.find(
                       (p) =>
@@ -524,14 +519,14 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                   <div className="pt-4 border-t border-[#232836] flex items-center justify-between text-xs text-[#9CA3AF]">
                     <span className="flex items-center gap-1.5">
                       <Lock className="w-3.5 h-3.5 text-[#10B981]" />
-                      Role-isolated session security
+                      Role-isolated session access
                     </span>
                     <button
                       type="button"
                       onClick={() => setAuthMode('register')}
                       className="text-[#D4FF00] font-semibold hover:underline cursor-pointer"
                     >
-                      New user? Register →
+                      Create Account →
                     </button>
                   </div>
                 </form>
@@ -542,8 +537,7 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                       Create Platform Account
                     </h2>
                     <p className="text-xs text-[#9CA3AF] mt-1">
-                      Select your role category to provision a tailored
-                      distribution workspace.
+                      Select your role category and enter your profile details.
                     </p>
                   </div>
 
@@ -559,19 +553,19 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                       className="w-full h-11 px-3.5 rounded-xl bg-[#0A0B0E] border border-[#2A3042] text-xs font-bold text-[#D4FF00] outline-none"
                     >
                       <option value="artiste">
-                        Artiste / Recording Artist (Creator Portal)
+                        Artiste / Recording Artist
                       </option>
                       <option value="music_manager">
-                        Music Manager (Multi-Artist Roster Portal)
+                        Music Manager
                       </option>
                       <option value="label_exec">
-                        Record Label & A&R Executive (Imprint Portal)
+                        Record Label & A&R Executive
                       </option>
                       <option value="producer_collab">
-                        Producer / Songwriter / Collaborator (Split Portal)
+                        Producer / Songwriter / Collaborator
                       </option>
                       <option value="tank_admin">
-                        Tank Admin (System & Operations Admin)
+                        Tank Admin
                       </option>
                     </select>
                   </div>
@@ -586,7 +580,6 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                         required
                         value={regName}
                         onChange={(e) => setRegName(e.target.value)}
-                        placeholder="e.g. Zuri K"
                         className="w-full h-10 px-3 rounded-xl bg-[#0A0B0E] border border-[#2A3042] text-xs text-[#F3F4F6] outline-none"
                       />
                     </div>
@@ -600,7 +593,6 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                         required
                         value={regEmail}
                         onChange={(e) => setRegEmail(e.target.value)}
-                        placeholder="zuri@afrosound.ug"
                         className="w-full h-10 px-3 rounded-xl bg-[#0A0B0E] border border-[#2A3042] text-xs font-mono-tech text-[#F3F4F6] outline-none"
                       />
                     </div>
@@ -609,27 +601,24 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-mono-tech uppercase text-[#9CA3AF] mb-1">
-                        Create Password *
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
-                        placeholder="Min 6 characters"
-                        className="w-full h-10 px-3 rounded-xl bg-[#0A0B0E] border border-[#2A3042] text-xs font-mono-tech text-[#F3F4F6] outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono-tech uppercase text-[#9CA3AF] mb-1">
                         Label / Management / Org
                       </label>
                       <input
                         type="text"
                         value={regOrg}
                         onChange={(e) => setRegOrg(e.target.value)}
-                        placeholder="e.g. Zuri Sound Collective"
+                        className="w-full h-10 px-3 rounded-xl bg-[#0A0B0E] border border-[#2A3042] text-xs text-[#F3F4F6] outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-mono-tech uppercase text-[#9CA3AF] mb-1">
+                        City / Territory
+                      </label>
+                      <input
+                        type="text"
+                        value={regLocation}
+                        onChange={(e) => setRegLocation(e.target.value)}
                         className="w-full h-10 px-3 rounded-xl bg-[#0A0B0E] border border-[#2A3042] text-xs text-[#F3F4F6] outline-none"
                       />
                     </div>
@@ -637,13 +626,12 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
 
                   <div>
                     <label className="block text-xs font-mono-tech uppercase text-[#9CA3AF] mb-1">
-                      Associated / Managed Artistes (comma separated)
+                      Associated / Managed Artistes
                     </label>
                     <input
                       type="text"
                       value={regArtists}
                       onChange={(e) => setRegArtists(e.target.value)}
-                      placeholder="e.g. KAMPALA NIGHTS, SORA VANE"
                       className="w-full h-10 px-3 rounded-xl bg-[#0A0B0E] border border-[#2A3042] text-xs text-[#F3F4F6] outline-none"
                     />
                   </div>

@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Rocket,
   ShieldCheck,
-  Sparkles,
   Trash2,
   Upload,
   Users,
@@ -46,15 +45,17 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Step 1 State
-  const [title, setTitle] = useState('KAMPALA OVERDRIVE 2026');
-  const [primaryArtist, setPrimaryArtist] = useState('KAMPALA NIGHTS');
-  const [featuredArtists, setFeaturedArtists] = useState('ZURI K');
+  // Step 1 State (All inputs start blank — no placeholder values)
+  const [title, setTitle] = useState('');
+  const [primaryArtist, setPrimaryArtist] = useState('');
+  const [featuredArtists, setFeaturedArtists] = useState('');
   const [releaseType, setReleaseType] = useState<ReleaseFormat>('Single');
   const [primaryGenre, setPrimaryGenre] = useState('Electronic / Afro-Tech');
-  const [subgenre, setSubgenre] = useState('Peak-Time Club & Bass');
-  const [labelName, setLabelName] = useState('Tank Recordings');
-  const [releaseDate, setReleaseDate] = useState('2026-10-30');
+  const [subgenre, setSubgenre] = useState('');
+  const [labelName, setLabelName] = useState('');
+  const [releaseDate, setReleaseDate] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
   const [upcCode, setUpcCode] = useState(() => generateUpcCode());
   const [explicit, setExplicit] = useState(false);
   const [selectedThemeId, setSelectedThemeId] = useState('volt-matrix');
@@ -72,50 +73,40 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
       explicit,
     });
 
-  // Step 2 State: Tracks
+  // Step 2 State: Tracks (Starts with 1 blank track row)
   const [tracks, setTracks] = useState<TrackItem[]>([
     {
       id: `trk-new-1`,
       releaseId: 'pending',
       trackNumber: 1,
-      title: 'Kampala Overdrive (Club Mix)',
+      title: '',
       version: 'Original Mix',
-      primaryArtist: 'KAMPALA NIGHTS',
-      featuredArtists: 'ZURI K',
+      primaryArtist: '',
+      featuredArtists: '',
       isrcCode: generateIsrcCode(existingCount * 10 + 1),
-      songwriterLegalName: 'A. Mukasa, Z. Kemigisha',
+      songwriterLegalName: '',
       explicitLyrics: false,
       language: 'English',
-      durationSeconds: 218,
+      durationSeconds: 0,
       sampleRate: '24-bit / 48.0 kHz WAV',
-      integratedLufs: -13.9,
+      integratedLufs: -14.0,
       truePeakDbtp: -0.2,
       synthPreset: 'cyber-bass',
       streams: 0,
     },
   ]);
 
-  // Step 3 State: Splits
+  // Step 3 State: Splits (Starts with 1 primary artist split row at 100%)
   const [splits, setSplits] = useState<RoyaltySplitItem[]>([
     {
       id: 'spl-new-1',
       releaseId: 'pending',
-      collaboratorName: 'Kampala Nights (Primary)',
-      collaboratorEmail: 'ops@tankdistribution.io',
+      collaboratorName: '',
+      collaboratorEmail: '',
       role: 'Primary Artist',
-      sharePercentage: 70,
+      sharePercentage: 100,
       status: 'Verified',
       payoutMethod: 'Stripe Connect',
-    },
-    {
-      id: 'spl-new-2',
-      releaseId: 'pending',
-      collaboratorName: 'Zuri K',
-      collaboratorEmail: 'zurik@afrosound.ug',
-      role: 'Featured Artist',
-      sharePercentage: 30,
-      status: 'Verified',
-      payoutMethod: 'Wise Multi-Currency',
     },
   ]);
 
@@ -155,38 +146,40 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
         const dur =
           tempAudio.duration && !Number.isNaN(tempAudio.duration)
             ? Math.round(tempAudio.duration)
-            : 210;
+            : 0;
 
-        setTracks((prev) => [
-          ...prev,
-          {
+        setTracks((prev) => {
+          // If first track is still blank, replace it; otherwise append
+          const firstIsBlank = prev.length === 1 && !prev[0].title.trim() && !prev[0].audioUrl;
+          const newTrack: TrackItem = {
             id: `trk-upload-${Date.now()}-${index}`,
             releaseId: 'pending',
-            trackNumber: prev.length + 1,
-            title: cleanName || `Uploaded Master ${prev.length + 1}`,
-            version: 'Uploaded Studio Master',
-            primaryArtist: primaryArtist || 'TANK ARTIST',
+            trackNumber: firstIsBlank ? 1 : prev.length + 1,
+            title: cleanName,
+            version: 'Original Mix',
+            primaryArtist: primaryArtist.trim(),
             featuredArtists,
             isrcCode: generateIsrcCode(),
-            songwriterLegalName: 'A. Mukasa',
+            songwriterLegalName: '',
             explicitLyrics: explicit,
             language: 'English',
             durationSeconds: dur,
             sampleRate: file.name.toLowerCase().endsWith('.wav')
               ? '24-bit / 48.0 kHz WAV'
-              : 'Lossless Transcode Ready',
+              : 'Lossless Audio',
             integratedLufs: -14.0,
             truePeakDbtp: -0.2,
             audioUrl: objectUrl,
             synthPreset: 'afro-pulse',
             streams: 0,
-          },
-        ]);
+          };
+          return firstIsBlank ? [newTrack] : [...prev, newTrack];
+        });
       });
     });
   };
 
-  const handleAddSynthTrack = () => {
+  const handleAddTrackRow = () => {
     const presets: TrackItem['synthPreset'][] = [
       'cyber-bass',
       'afro-pulse',
@@ -202,15 +195,15 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
         id: `trk-new-${Date.now()}`,
         releaseId: 'pending',
         trackNumber: nextNum,
-        title: `${title} (Track ${nextNum})`,
+        title: '',
         version: 'Original Mix',
         primaryArtist,
         featuredArtists,
         isrcCode: generateIsrcCode(),
-        songwriterLegalName: 'A. Mukasa',
+        songwriterLegalName: '',
         explicitLyrics: explicit,
         language: 'English',
-        durationSeconds: 196 + nextNum * 12,
+        durationSeconds: 0,
         sampleRate: '24-bit / 48.0 kHz WAV',
         integratedLufs: -14.0,
         truePeakDbtp: -0.3,
@@ -220,7 +213,10 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
     ]);
   };
 
-  const splitTotal = splits.reduce((acc, s) => acc + Number(s.sharePercentage || 0), 0);
+  const splitTotal = splits.reduce(
+    (acc, s) => acc + Number(s.sharePercentage || 0),
+    0
+  );
   const isSplitValid = Math.abs(splitTotal - 100) < 0.01;
 
   const handleBalanceSplits = () => {
@@ -230,7 +226,8 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
     setSplits(
       splits.map((s, idx) => ({
         ...s,
-        sharePercentage: idx === 0 ? Number((base + remainder).toFixed(2)) : base,
+        sharePercentage:
+          idx === 0 ? Number((base + remainder).toFixed(2)) : base,
       }))
     );
   };
@@ -240,7 +237,9 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
     setIsSubmitting(true);
 
     const newRelId = `rel-${Date.now()}`;
-    const finalStatus = deliverySpeed === 'instant' ? 'Delivered' : 'In Review';
+    const finalStatus =
+      deliverySpeed === 'instant' ? 'Delivered' : 'In Review';
+    const effectiveLabel = labelName.trim() || primaryArtist.trim();
 
     const newRelease: ReleaseItem = {
       id: newRelId,
@@ -250,33 +249,34 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
       releaseType,
       primaryGenre,
       subgenre,
-      labelName,
+      labelName: effectiveLabel,
       upcCode,
       catalogNumber,
       releaseDate,
       originalReleaseDate: releaseDate,
-      pLine: `${releaseDate.slice(0, 4)} ${labelName}`,
-      cLine: `${releaseDate.slice(0, 4)} ${labelName}`,
+      pLine: `${releaseDate.slice(0, 4)} ${effectiveLabel}`,
+      cLine: `${releaseDate.slice(0, 4)} ${effectiveLabel}`,
       coverArtUrl: activeCoverUrl,
       status: finalStatus,
       explicit,
       storesSelected: selectedStores,
       storesDelivered:
-        finalStatus === 'Delivered'
-          ? selectedStores.length
-          : Math.max(1, Math.floor(selectedStores.length / 2)),
-      totalStreams: finalStatus === 'Delivered' ? 12400 : 0,
-      totalRoyalties: finalStatus === 'Delivered' ? 74.40 : 0,
+        finalStatus === 'Delivered' ? selectedStores.length : 0,
+      totalStreams: 0,
+      totalRoyalties: 0,
       ddexVersion: 'ERN-4.3',
       createdAt: new Date().toISOString(),
       tracks: tracks.map((t, i) => ({
         ...t,
+        title: t.title.trim() || `${title.trim()} (Track ${i + 1})`,
         releaseId: newRelId,
         trackNumber: i + 1,
         primaryArtist: primaryArtist.trim().toUpperCase(),
       })),
       splits: splits.map((s) => ({
         ...s,
+        collaboratorName:
+          s.collaboratorName.trim() || primaryArtist.trim(),
         releaseId: newRelId,
       })),
       deliveries: selectedStores.map((st, idx) => ({
@@ -284,13 +284,11 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
         releaseId: newRelId,
         storeId: st.toLowerCase().replace(/\s+/g, '-'),
         storeName: st,
-        deliveryStatus: finalStatus === 'Delivered' ? 'Delivered' : 'In Review',
+        deliveryStatus:
+          finalStatus === 'Delivered' ? 'Delivered' : 'In Review',
         ddexBatchId: `DDEX-${catalogNumber}-${idx + 1}`,
-        streams: finalStatus === 'Delivered' ? Math.floor(12400 / selectedStores.length) : 0,
-        revenueUsd:
-          finalStatus === 'Delivered'
-            ? Number((74.4 / selectedStores.length).toFixed(2))
-            : 0,
+        streams: 0,
+        revenueUsd: 0,
         deliveredAt: new Date().toISOString(),
       })),
     };
@@ -323,8 +321,18 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
         {/* 4-Step Progress Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-5">
           {[
-            { num: 1, title: 'Metadata & Cover Art', sub: 'UPC & 3000px Spec', icon: ImageIcon },
-            { num: 2, title: 'Masters & ISRC Codes', sub: `${tracks.length} Audio Track(s)`, icon: Disc3 },
+            {
+              num: 1,
+              title: 'Metadata & Cover Art',
+              sub: 'UPC & 3000px Spec',
+              icon: ImageIcon,
+            },
+            {
+              num: 2,
+              title: 'Masters & ISRC Codes',
+              sub: `${tracks.length} Audio Track(s)`,
+              icon: Disc3,
+            },
             {
               num: 3,
               title: '100% Royalty Splits',
@@ -362,7 +370,11 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                       : 'bg-[#1C202B] text-[#9CA3AF]'
                   }`}
                 >
-                  {isDone ? <Check className="w-4 h-4 stroke-[3]" /> : <Icon className="w-4 h-4" />}
+                  {isDone ? (
+                    <Check className="w-4 h-4 stroke-[3]" />
+                  ) : (
+                    <Icon className="w-4 h-4" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-[#F3F4F6] truncate">
@@ -395,7 +407,6 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. SUBWOOFER SOVEREIGNTY"
                   className="w-full h-11 px-3.5 rounded-lg bg-[#0E1117] border border-[#2A3042] focus:border-[#D4FF00] text-sm text-[#F3F4F6] outline-none"
                 />
               </div>
@@ -420,7 +431,6 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                   type="text"
                   value={featuredArtists}
                   onChange={(e) => setFeaturedArtists(e.target.value)}
-                  placeholder="Optional (comma separated)"
                   className="w-full h-11 px-3.5 rounded-lg bg-[#0E1117] border border-[#2A3042] focus:border-[#D4FF00] text-sm text-[#F3F4F6] outline-none"
                 />
               </div>
@@ -431,7 +441,9 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                 </label>
                 <select
                   value={releaseType}
-                  onChange={(e) => setReleaseType(e.target.value as ReleaseFormat)}
+                  onChange={(e) =>
+                    setReleaseType(e.target.value as ReleaseFormat)
+                  }
                   className="w-full h-11 px-3.5 rounded-lg bg-[#0E1117] border border-[#2A3042] focus:border-[#D4FF00] text-sm text-[#F3F4F6] outline-none"
                 >
                   <option value="Single">Single (1–3 Tracks)</option>
@@ -449,9 +461,15 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                   onChange={(e) => setPrimaryGenre(e.target.value)}
                   className="w-full h-11 px-3.5 rounded-lg bg-[#0E1117] border border-[#2A3042] focus:border-[#D4FF00] text-sm text-[#F3F4F6] outline-none"
                 >
-                  <option value="Electronic / Afro-Tech">Electronic / Afro-Tech</option>
-                  <option value="Afrobeats / Amapiano">Afrobeats / Amapiano</option>
-                  <option value="Hip-Hop / Alternative Trap">Hip-Hop / Alternative Trap</option>
+                  <option value="Electronic / Afro-Tech">
+                    Electronic / Afro-Tech
+                  </option>
+                  <option value="Afrobeats / Amapiano">
+                    Afrobeats / Amapiano
+                  </option>
+                  <option value="Hip-Hop / Alternative Trap">
+                    Hip-Hop / Alternative Trap
+                  </option>
                   <option value="Techno / House">Techno / House</option>
                   <option value="R&B / Alt-Soul">R&B / Alt-Soul</option>
                   <option value="Synthwave / Bass">Synthwave / Bass</option>
@@ -513,8 +531,7 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                     className="w-4 h-4 accent-[#D4FF00] rounded"
                   />
                   <span className="text-sm text-[#F3F4F6]">
-                    Release contains Explicit Lyrics (adds Parental Advisory badge &
-                    DDEX Explicit flag)
+                    Release contains Explicit Lyrics
                   </span>
                 </label>
               </div>
@@ -529,7 +546,7 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                   3000×3000px Cover Art Studio
                 </h2>
                 <span className="px-2 py-0.5 text-[10px] font-mono-tech bg-[#10B981]/15 text-[#10B981] rounded">
-                  DSP SPEC VERIFIED
+                  SPEC VERIFIED
                 </span>
               </div>
 
@@ -545,13 +562,13 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                 {/* Preset Theme Selector */}
                 <div className="w-full mt-4">
                   <div className="text-xs font-mono-tech text-[#9CA3AF] mb-2 flex items-center justify-between">
-                    <span>STUDIO PROCEDURAL COVER PRESETS:</span>
+                    <span>STUDIO COVER PRESETS:</span>
                     {customCoverUrl && (
                       <button
                         onClick={() => setCustomCoverUrl(null)}
                         className="text-[#D4FF00] underline cursor-pointer"
                       >
-                        Reset to Studio Synth Art
+                        Reset to Studio Cover
                       </button>
                     )}
                   </div>
@@ -620,8 +637,7 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                 2. Lossless Audio Masters & ISRC Assignment
               </h2>
               <p className="text-xs text-[#9CA3AF] mt-0.5">
-                Upload real WAV/MP3/FLAC masters from your device or add studio synth
-                stems. Every track receives a unique US-TNK-26 ISRC code.
+                Upload WAV/MP3/FLAC masters from your device or add track rows.
               </p>
             </div>
 
@@ -639,11 +655,11 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
               </label>
               <button
                 type="button"
-                onClick={handleAddSynthTrack}
+                onClick={handleAddTrackRow}
                 className="px-3.5 py-2 rounded-lg bg-[#1C202B] hover:bg-[#252B3B] border border-[#2E3548] text-xs font-semibold text-[#F3F4F6] flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 text-[#D4FF00]" />
-                Add Studio Track
+                Add Track Row
               </button>
             </div>
           </div>
@@ -660,8 +676,7 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                       {idx + 1}
                     </span>
                     <span className="text-xs font-mono-tech text-[#10B981] bg-[#10B981]/10 px-2.5 py-0.5 rounded border border-[#10B981]/25">
-                      QC PASS • {track.sampleRate} • {track.integratedLufs.toFixed(1)}{' '}
-                      LUFS
+                      {track.sampleRate} • {track.integratedLufs.toFixed(1)} LUFS
                     </span>
                     <button
                       type="button"
@@ -691,7 +706,7 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-[11px] font-mono-tech text-[#9CA3AF] mb-1">
-                      Track Title
+                      Track Title *
                     </label>
                     <input
                       type="text"
@@ -757,7 +772,6 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                           )
                         }
                         className="h-10 px-2.5 rounded-lg bg-[#1C202B] text-[#9CA3AF] hover:text-[#F3F4F6] cursor-pointer"
-                        title="Regenerate ISRC"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
                       </button>
@@ -816,8 +830,7 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                 3. Automated Collaborator Royalty Splits
               </h2>
               <p className="text-xs text-[#9CA3AF] mt-0.5">
-                Tank Distribution automatically routes net streaming payouts to every
-                collaborator. Total allocation must equal exactly 100%.
+                Total royalty allocation must equal 100%.
               </p>
             </div>
 
@@ -837,11 +850,11 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                     {
                       id: `spl-${Date.now()}`,
                       releaseId: 'pending',
-                      collaboratorName: 'New Collaborator',
-                      collaboratorEmail: 'collab@studio.io',
+                      collaboratorName: '',
+                      collaboratorEmail: '',
                       role: 'Producer',
                       sharePercentage: 0,
-                      status: 'Pending',
+                      status: 'Verified',
                       payoutMethod: 'Stripe Connect',
                     },
                   ])
@@ -880,7 +893,13 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
             </div>
             <div className="w-full h-3 bg-[#1A1F2C] rounded-full overflow-hidden flex">
               {splits.map((s, i) => {
-                const colors = ['#D4FF00', '#10B981', '#38BDF8', '#FF6B2C', '#A855F7'];
+                const colors = [
+                  '#D4FF00',
+                  '#10B981',
+                  '#38BDF8',
+                  '#FF6B2C',
+                  '#A855F7',
+                ];
                 return (
                   <div
                     key={s.id}
@@ -889,7 +908,6 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                       backgroundColor: colors[i % colors.length],
                     }}
                     className="h-full transition-all duration-200"
-                    title={`${s.collaboratorName}: ${s.sharePercentage}%`}
                   />
                 );
               })}
@@ -914,7 +932,9 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                       const val = e.target.value;
                       setSplits(
                         splits.map((s) =>
-                          s.id === split.id ? { ...s, collaboratorName: val } : s
+                          s.id === split.id
+                            ? { ...s, collaboratorName: val }
+                            : s
                         )
                       );
                     }}
@@ -933,7 +953,9 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                       const val = e.target.value;
                       setSplits(
                         splits.map((s) =>
-                          s.id === split.id ? { ...s, collaboratorEmail: val } : s
+                          s.id === split.id
+                            ? { ...s, collaboratorEmail: val }
+                            : s
                         )
                       );
                     }}
@@ -960,7 +982,9 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                     <option value="Primary Artist">Primary Artist</option>
                     <option value="Producer">Producer</option>
                     <option value="Featured Artist">Featured Artist</option>
-                    <option value="Mixing / Mastering">Mixing / Mastering</option>
+                    <option value="Mixing / Mastering">
+                      Mixing / Mastering
+                    </option>
                     <option value="Songwriter">Songwriter</option>
                     <option value="Label Share">Label Share</option>
                   </select>
@@ -973,7 +997,8 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                   <select
                     value={split.payoutMethod}
                     onChange={(e) => {
-                      const val = e.target.value as RoyaltySplitItem['payoutMethod'];
+                      const val =
+                        e.target.value as RoyaltySplitItem['payoutMethod'];
                       setSplits(
                         splits.map((s) =>
                           s.id === split.id ? { ...s, payoutMethod: val } : s
@@ -983,7 +1008,9 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                     className="w-full h-10 px-2.5 rounded-lg bg-[#0E1117] border border-[#2A3042] text-xs text-[#F3F4F6] outline-none"
                   >
                     <option value="Stripe Connect">Stripe Connect</option>
-                    <option value="Wise Multi-Currency">Wise Multi-Currency</option>
+                    <option value="Wise Multi-Currency">
+                      Wise Multi-Currency
+                    </option>
                     <option value="Bank Wire (SWIFT)">Bank Wire (SWIFT)</option>
                     <option value="USDC Vault">USDC Vault</option>
                   </select>
@@ -1004,7 +1031,9 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                         const val = parseFloat(e.target.value) || 0;
                         setSplits(
                           splits.map((s) =>
-                            s.id === split.id ? { ...s, sharePercentage: val } : s
+                            s.id === split.id
+                              ? { ...s, sharePercentage: val }
+                              : s
                           )
                         );
                       }}
@@ -1043,30 +1072,32 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                   : 'bg-[#232836] text-[#6B7280] cursor-not-allowed'
               }`}
             >
-              Continue to DSP Store Selection
+              Continue to Store Selection
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
 
-      {/* STEP 4: DSP STORES & DDEX DEPLOYMENT */}
+      {/* STEP 4: DSP STORES & DEPLOYMENT */}
       {step === 4 && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 p-6 rounded-xl bg-[#141720] border border-[#232836] space-y-5">
             <div className="flex items-center justify-between border-b border-[#232836] pb-4">
               <div>
                 <h2 className="text-base font-bold text-[#F3F4F6] uppercase tracking-wide">
-                  4. Global DSP Store Selection & Content ID
+                  4. Global Store Selection & Content ID
                 </h2>
                 <p className="text-xs text-[#9CA3AF] mt-0.5">
-                  Select target streaming platforms for DDEX ERN 4.3 ingestion
+                  Select target streaming platforms for release delivery
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedStores(DSP_STORES.map((s) => s.name))}
+                  onClick={() =>
+                    setSelectedStores(DSP_STORES.map((s) => s.name))
+                  }
                   className="text-xs font-mono-tech text-[#D4FF00] hover:underline cursor-pointer"
                 >
                   Select All ({DSP_STORES.length})
@@ -1118,7 +1149,9 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                           : 'border border-[#38415A]'
                       }`}
                     >
-                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      {isSelected && (
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      )}
                     </div>
                   </div>
                 );
@@ -1133,8 +1166,8 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                     YouTube Content ID & TikTok / Meta Audio Fingerprinting
                   </div>
                   <div className="text-[11px] text-[#9CA3AF]">
-                    Automatically claim & monetize user-generated videos using your
-                    master audio
+                    Automatically claim & monetize user-generated videos using
+                    your master audio
                   </div>
                 </div>
                 <input
@@ -1147,7 +1180,7 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
 
               <div className="pt-3 border-t border-[#1E2330] flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-mono-tech text-[#9CA3AF]">
-                  INGESTION PIPELINE MODE:
+                  DELIVERY PIPELINE MODE:
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -1183,7 +1216,7 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
               <div className="flex items-center gap-3">
                 <img
                   src={activeCoverUrl}
-                  alt={title}
+                  alt={title || 'Release Artwork'}
                   className="w-16 h-16 rounded-lg object-cover border border-[#2E3548]"
                 />
                 <div>
@@ -1191,22 +1224,24 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
                     {releaseType} • {catalogNumber}
                   </span>
                   <h3 className="text-base font-bold text-[#F3F4F6] mt-1">
-                    {title}
+                    {title || 'Untitled Release'}
                   </h3>
-                  <p className="text-xs text-[#9CA3AF]">{primaryArtist}</p>
+                  <p className="text-xs text-[#9CA3AF]">
+                    {primaryArtist || 'Required: Primary Artist'}
+                  </p>
                 </div>
               </div>
 
               <div className="p-4 rounded-xl bg-[#0E1117] border border-[#232836] space-y-2.5 text-xs">
                 <div className="font-mono-tech text-[#9CA3AF] uppercase text-[11px]">
-                  DDEX ERN 4.3 Pre-Flight Validation
+                  Pre-Flight Validation
                 </div>
                 {[
                   `3000×3000px RGB Artwork Spec Verified`,
                   `UPC Barcode Assigned (${upcCode})`,
-                  `${tracks.length} Lossless Track(s) with US-TNK ISRCs`,
+                  `${tracks.length} Track(s) with US-TNK ISRCs`,
                   `100.00% Royalty Splits Locked (${splits.length} Collaborators)`,
-                  `${selectedStores.length} Global DSP Endpoints Selected`,
+                  `${selectedStores.length} Global Store Endpoints Selected`,
                 ].map((check) => (
                   <div
                     key={check}
@@ -1220,15 +1255,28 @@ export const ReleaseBuilderView: React.FC<ReleaseBuilderViewProps> = ({
             </div>
 
             <div className="space-y-3 pt-4 border-t border-[#232836]">
+              {(!title.trim() || !primaryArtist.trim()) && (
+                <div className="text-xs text-[#F59E0B]">
+                  Please enter a Release Title and Primary Artist in Step 1
+                  before deploying.
+                </div>
+              )}
               <button
-                disabled={isSubmitting || selectedStores.length === 0}
+                disabled={
+                  isSubmitting ||
+                  selectedStores.length === 0 ||
+                  !title.trim() ||
+                  !primaryArtist.trim()
+                }
                 onClick={handleDeployRelease}
-                className="w-full py-3.5 px-5 rounded-xl bg-[#D4FF00] hover:bg-[#e1ff33] text-[#0A0B0E] font-extrabold text-sm flex items-center justify-center gap-2 shadow-[0_0_28px_rgba(212,255,0,0.3)] transition-all cursor-pointer"
+                className={`w-full py-3.5 px-5 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  !title.trim() || !primaryArtist.trim()
+                    ? 'bg-[#232836] text-[#6B7280] cursor-not-allowed'
+                    : 'bg-[#D4FF00] hover:bg-[#e1ff33] text-[#0A0B0E] shadow-[0_0_28px_rgba(212,255,0,0.3)]'
+                }`}
               >
                 <Rocket className="w-4 h-4" />
-                {isSubmitting
-                  ? 'DEPLOYING DDEX PACKAGE...'
-                  : 'DEPLOY RELEASE TO DSPs'}
+                {isSubmitting ? 'DEPLOYING...' : 'DEPLOY RELEASE TO DSPs'}
               </button>
               <button
                 onClick={() => setStep(3)}

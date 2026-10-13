@@ -14,12 +14,10 @@ export interface UserProfileAccount {
   displayRole: string;
   category: ProfileCategory;
   email: string;
-  password?: string;
   avatarBadge: string;
   accentColor: string;
   organization: string;
   location: string;
-  /** For Artiste: their primary artist name; For Music Manager: array of managed artist names */
   associatedArtists: string[];
   commissionOrShareNote: string;
   bio: string;

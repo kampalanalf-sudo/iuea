@@ -13,10 +13,10 @@ import {
   RoyaltyTransaction,
 } from '../types/distribution';
 
-const LS_RELEASES = 'tank_dist_releases_v2';
-const LS_TRANSACTIONS = 'tank_dist_transactions_v2';
-const LS_PAYOUTS = 'tank_dist_payouts_v2';
-const LS_PROFILE = 'tank_dist_profile_v2';
+const LS_RELEASES = 'tank_dist_releases_v3';
+const LS_TRANSACTIONS = 'tank_dist_transactions_v3';
+const LS_PAYOUTS = 'tank_dist_payouts_v3';
+const LS_PROFILE = 'tank_dist_profile_v3';
 
 function loadFromStorage<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;

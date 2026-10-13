@@ -67,9 +67,9 @@ type NavView =
   | 'profiles-manuals'
   | 'supabase-github';
 
-const LS_USER_PROFILES = 'tank_dist_user_profiles_v2';
-const LS_ACTIVE_PROFILE_ID = 'tank_dist_active_profile_id_v2';
-const LS_IS_AUTHENTICATED = 'tank_dist_is_authenticated_v2';
+const LS_USER_PROFILES = 'tank_dist_user_profiles_v3';
+const LS_ACTIVE_PROFILE_ID = 'tank_dist_active_profile_id_v3';
+const LS_IS_AUTHENTICATED = 'tank_dist_is_authenticated_v3';
 
 export function App() {
   const [activeView, setActiveView] = useState<NavView>('overview');

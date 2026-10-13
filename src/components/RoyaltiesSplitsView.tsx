@@ -34,21 +34,19 @@ export const RoyaltiesSplitsView: React.FC<RoyaltiesSplitsViewProps> = ({
   const [selectedReleaseId, setSelectedReleaseId] = useState<string>(
     releases[0]?.id || ''
   );
-  const [payoutAmount, setPayoutAmount] = useState<string>('1250.00');
+  const [payoutAmount, setPayoutAmount] = useState<string>('');
   const [payoutMethod, setPayoutMethod] = useState<string>(
     'Stripe Connect Express'
   );
-  const [destinationAccount, setDestinationAccount] = useState<string>(
-    'acct_1TankKla9921 •••• 4819'
-  );
+  const [destinationAccount, setDestinationAccount] = useState<string>('');
   const [payoutSuccessMsg, setPayoutSuccessMsg] = useState<string | null>(null);
   const [storeFilter, setStoreFilter] = useState<string>('All');
 
   const grossRoyalties = releases.reduce((acc, r) => acc + r.totalRoyalties, 0);
   const totalWithdrawn = payouts.reduce((acc, p) => acc + p.amountUsd, 0);
   const availableBalance = Math.max(
-    180,
-    Number((grossRoyalties - totalWithdrawn * 0.25).toFixed(2))
+    0,
+    Number((grossRoyalties - totalWithdrawn).toFixed(2))
   );
 
   const selectedRelease =

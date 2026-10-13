@@ -674,7 +674,6 @@ export const ProfilesAndManualsView: React.FC<ProfilesAndManualsViewProps> = ({
                     required
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g. Zuri K"
                     className="w-full h-10 px-3 rounded-lg bg-[#0E1117] border border-[#2A3042] text-xs text-[#F3F4F6] outline-none"
                   />
                 </div>
@@ -688,7 +687,6 @@ export const ProfilesAndManualsView: React.FC<ProfilesAndManualsViewProps> = ({
                     required
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="zuri@afrosound.ug"
                     className="w-full h-10 px-3 rounded-lg bg-[#0E1117] border border-[#2A3042] text-xs text-[#F3F4F6] outline-none"
                   />
                 </div>
@@ -703,7 +701,6 @@ export const ProfilesAndManualsView: React.FC<ProfilesAndManualsViewProps> = ({
                     type="text"
                     value={newOrg}
                     onChange={(e) => setNewOrg(e.target.value)}
-                    placeholder="e.g. AfroSound Management"
                     className="w-full h-10 px-3 rounded-lg bg-[#0E1117] border border-[#2A3042] text-xs text-[#F3F4F6] outline-none"
                   />
                 </div>
@@ -729,7 +726,6 @@ export const ProfilesAndManualsView: React.FC<ProfilesAndManualsViewProps> = ({
                   type="text"
                   value={newArtistsInput}
                   onChange={(e) => setNewArtistsInput(e.target.value)}
-                  placeholder="e.g. KAMPALA NIGHTS, SORA VANE"
                   className="w-full h-10 px-3 rounded-lg bg-[#0E1117] border border-[#2A3042] text-xs text-[#F3F4F6] outline-none"
                 />
               </div>
@@ -742,7 +738,6 @@ export const ProfilesAndManualsView: React.FC<ProfilesAndManualsViewProps> = ({
                   rows={2}
                   value={newBio}
                   onChange={(e) => setNewBio(e.target.value)}
-                  placeholder="Short description of this profile's responsibilities..."
                   className="w-full p-3 rounded-lg bg-[#0E1117] border border-[#2A3042] text-xs text-[#F3F4F6] outline-none"
                 />
               </div>

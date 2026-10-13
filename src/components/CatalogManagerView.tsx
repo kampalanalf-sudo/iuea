@@ -88,7 +88,7 @@ export const CatalogManagerView: React.FC<CatalogManagerViewProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by Title, Artist, UPC (8597...), or ISRC (US-TNK...)"
+              aria-label="Search Catalog"
               className="w-full h-10 pl-10 pr-4 rounded-lg bg-[#0A0B0E] border border-[#232836] focus:border-[#D4FF00] text-xs text-[#F3F4F6] outline-none"
             />
           </div>

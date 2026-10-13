@@ -242,7 +242,6 @@ export const SupabaseGithubView: React.FC<SupabaseGithubViewProps> = ({
                 type="url"
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="https://your-project-ref.supabase.co"
                 className="w-full h-11 px-3.5 rounded-lg bg-[#0E1117] border border-[#2A3042] focus:border-[#D4FF00] font-mono-tech text-xs text-[#F3F4F6] outline-none"
               />
             </div>
@@ -254,10 +253,9 @@ export const SupabaseGithubView: React.FC<SupabaseGithubViewProps> = ({
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-[#6B7280] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="password"
+                  type="text"
                   value={keyInput}
                   onChange={(e) => setKeyInput(e.target.value)}
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                   className="w-full h-11 pl-10 pr-4 rounded-lg bg-[#0E1117] border border-[#2A3042] focus:border-[#D4FF00] font-mono-tech text-xs text-[#F3F4F6] outline-none"
                 />
               </div>
