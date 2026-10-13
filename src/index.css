@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-primary: #0A0B0E;
+    --bg-console: #12141A;
+    --bg-surface: #181B24;
+    --border-hairline: #232836;
+    --tank-volt: #D4FF00;
+    --signal-amber: #FF6B2C;
+    --status-emerald: #10B981;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #0A0B0E;
+    color: #F3F4F6;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Syne', sans-serif;
+    letter-spacing: -0.03em;
+  }
+
+  .font-mono-tech {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom studio scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0B0E;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #232836;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #363E54;
+}
+
+/* Subtle architectural grid overlay */
+.studio-grid-bg {
+  background-image: 
+    linear-gradient(to right, rgba(35, 40, 54, 0.28) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(35, 40, 54, 0.28) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
