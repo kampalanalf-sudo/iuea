@@ -464,7 +464,7 @@ export const ProfilesAndManualsView: React.FC<ProfilesAndManualsViewProps> = ({
 
           <div className="flex flex-wrap items-center gap-2.5">
             <a
-              href={`/manuals/${activeManual.pdfFileName}`}
+              href={`./manuals/${activeManual.pdfFileName}`}
               download={activeManual.pdfFileName}
               onClick={(e) => {
                 e.preventDefault();
