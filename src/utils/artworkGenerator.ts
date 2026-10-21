@@ -205,13 +205,58 @@ export function generateCoverArtDataUri(options: {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+export function getRegisteredPrefixes(): {
+  gs1Prefix: string;
+  isrcCountry: string;
+  isrcRegistrant: string;
+  ddexPartyId: string;
+} {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('tank_dist_dsp_integrations_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          gs1UpcPrefix?: string;
+          isrcCountryCode?: string;
+          isrcRegistrantCode?: string;
+          ddexPartyId?: string;
+        };
+        const cleanGs1 = (parsed.gs1UpcPrefix || '').replace(/\D/g, '').slice(0, 10);
+        const cleanCountry = (parsed.isrcCountryCode || '')
+          .replace(/[^A-Za-z]/g, '')
+          .toUpperCase()
+          .slice(0, 2);
+        const cleanReg = (parsed.isrcRegistrantCode || '')
+          .replace(/[^A-Za-z0-9]/g, '')
+          .toUpperCase()
+          .slice(0, 3);
+        return {
+          gs1Prefix: cleanGs1.length >= 4 ? cleanGs1 : '8597',
+          isrcCountry: cleanCountry.length === 2 ? cleanCountry : 'US',
+          isrcRegistrant: cleanReg.length === 3 ? cleanReg : 'TNK',
+          ddexPartyId: (parsed.ddexPartyId || '').trim() || 'PADPIDA2026TANK01',
+        };
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return {
+    gs1Prefix: '8597',
+    isrcCountry: 'US',
+    isrcRegistrant: 'TNK',
+    ddexPartyId: 'PADPIDA2026TANK01',
+  };
+}
+
 export function generateUpcCode(): string {
-  const prefix = '8597';
-  let body = prefix;
-  for (let i = 0; i < 7; i++) {
+  const { gs1Prefix } = getRegisteredPrefixes();
+  let body = gs1Prefix;
+  while (body.length < 11) {
     body += Math.floor(Math.random() * 10).toString();
   }
-  // Standard UPC-A check digit calculation
+  body = body.slice(0, 11);
+  // Standard UPC-A Modulo-10 check digit calculation
   let oddSum = 0;
   let evenSum = 0;
   for (let i = 0; i < 11; i++) {
@@ -225,15 +270,16 @@ export function generateUpcCode(): string {
 }
 
 export function generateIsrcCode(sequence?: number): string {
-  const year = '26';
-  const registrant = 'TNK';
+  const { isrcCountry, isrcRegistrant } = getRegisteredPrefixes();
+  const year = new Date().getFullYear().toString().slice(-2);
   const serial = sequence
     ? String(sequence).padStart(5, '0')
     : String(Math.floor(10000 + Math.random() * 89999));
-  return `US-${registrant}-${year}-${serial}`;
+  return `${isrcCountry}-${isrcRegistrant}-${year}-${serial}`;
 }
 
 export function generateDdexXmlManifest(release: ReleaseItem): string {
+  const { ddexPartyId } = getRegisteredPrefixes();
   const tracksXml = release.tracks
     .map(
       (t) => `    <SoundRecording>
@@ -274,7 +320,7 @@ export function generateDdexXmlManifest(release: ReleaseItem): string {
     <MessageThreadId>TANK-DDEX-${release.catalogNumber}</MessageThreadId>
     <MessageId>MSG-${Date.now()}</MessageId>
     <MessageSender>
-      <PartyId>PADPIDA2026TANK01</PartyId>
+      <PartyId>${escapeXml(ddexPartyId)}</PartyId>
       <PartyName><FullName>Tank Distribution Global Operations</FullName></PartyName>
     </MessageSender>
     <MessageCreatedDateTime>${new Date().toISOString()}</MessageCreatedDateTime>
@@ -286,7 +332,7 @@ ${tracksXml}
     <Release IsMainRelease="true">
       <ReleaseId>
         <ICPN IsEan="false">${release.upcCode}</ICPN>
-        <CatalogNumber Namespace="DPID:PADPIDA2026TANK01">${escapeXml(release.catalogNumber)}</CatalogNumber>
+        <CatalogNumber Namespace="DPID:${escapeXml(ddexPartyId)}">${escapeXml(release.catalogNumber)}</CatalogNumber>
       </ReleaseId>
       <ReferenceTitle>
         <TitleText>${escapeXml(release.title)}</TitleText>

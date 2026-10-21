@@ -21,7 +21,12 @@ import {
   testSupabaseConnection,
 } from '../lib/supabase';
 import { syncLocalCatalogToSupabase } from '../services/distributionService';
-import { ArtistProfile, SupabaseConfigState } from '../types/distribution';
+import {
+  ArtistProfile,
+  ReleaseItem,
+  SupabaseConfigState,
+} from '../types/distribution';
+import { DspApiWebhookPanel } from './DspApiWebhookPanel';
 
 interface SupabaseGithubViewProps {
   supabaseState: SupabaseConfigState;
@@ -29,6 +34,7 @@ interface SupabaseGithubViewProps {
   profile: ArtistProfile;
   onUpdateProfile: (profile: ArtistProfile) => void;
   onRefreshData: () => Promise<void>;
+  releases: ReleaseItem[];
 }
 
 const SQL_SCHEMA_PREVIEW = `-- TANK DISTRIBUTION — SUPABASE POSTGRESQL SCHEMA (supabase/migrations/001_tank_distribution_schema.sql)
@@ -92,6 +98,28 @@ create table if not exists public.royalty_splits (
   payout_method text not null default 'Stripe Connect'
 );
 
+create table if not exists public.dsp_integrations (
+  id text primary key default 'global_dsp_config',
+  gs1_upc_prefix text default '',
+  isrc_country_code text default '',
+  isrc_registrant_code text default '',
+  ddex_party_id text default '',
+  spotify_client_id text default '',
+  spotify_client_secret text default '',
+  spotify_connected boolean default false,
+  youtube_api_key text default '',
+  youtube_cms_partner_id text default '',
+  youtube_connected boolean default false,
+  tiktok_client_key text default '',
+  tiktok_client_secret text default '',
+  aggregator_provider text default 'revelator',
+  delivery_webhook_url text default '',
+  delivery_api_key text default '',
+  webhook_signing_secret text default '',
+  auto_dispatch_on_release boolean default true,
+  updated_at timestamptz not null default now()
+);
+
 insert into storage.buckets (id, name, public)
 values ('cover-art', 'cover-art', true), ('master-audio', 'master-audio', true)
 on conflict (id) do nothing;`;
@@ -101,6 +129,7 @@ export const SupabaseGithubView: React.FC<SupabaseGithubViewProps> = ({
   onSupabaseStateChange,
   profile,
   onRefreshData,
+  releases,
 }) => {
   const initialCreds = getSavedSupabaseCredentials();
   const [urlInput, setUrlInput] = useState(initialCreds.url);
@@ -446,6 +475,9 @@ git push origin arena/b41594a2-iuea`}
           {SQL_SCHEMA_PREVIEW}
         </pre>
       </div>
+
+      {/* DSP API & Distribution Webhook Integration Panel */}
+      <DspApiWebhookPanel releases={releases} />
     </div>
   );
 };
