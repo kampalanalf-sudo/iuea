@@ -10,10 +10,25 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="./assets/index-B3hGid3l.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CkYPSra-.css">
+    <script type="module" crossorigin src="./assets/app-bundle.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/app-bundle.css">
   </head>
   <body class="bg-[#0A0B0E] text-[#F3F4F6] antialiased selection:bg-[#D4FF00] selection:text-[#0A0B0E]">
     <div id="root"></div>
+    <script>
+      (function () {
+        var isRawRoot = !!document.querySelector('script[src="/src/main.tsx"]');
+        if (isRawRoot && window.location.hostname.endsWith('github.io')) {
+          var css = document.createElement('link');
+          css.rel = 'stylesheet';
+          css.href = './docs/assets/app-bundle.css';
+          document.head.appendChild(css);
+          var js = document.createElement('script');
+          js.type = 'module';
+          js.src = './docs/assets/app-bundle.js';
+          document.body.appendChild(js);
+        }
+      })();
+    </script>
   </body>
 </html>
