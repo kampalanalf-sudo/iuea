@@ -17,6 +17,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { PROFILE_CATEGORY_META } from '../data/userProfiles';
+import { DspApiWebhookPanel } from './DspApiWebhookPanel';
 import {
   DeliveryStatus,
   PayoutRequest,
@@ -633,6 +634,9 @@ export const CommandOverviewView: React.FC<CommandOverviewViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Tank Admin Exclusive: DSP API Keys, GS1/ISRC Registry Prefixes & Distribution Webhook Panel */}
+      {isAdmin && <DspApiWebhookPanel releases={releases} />}
     </div>
   );
 };

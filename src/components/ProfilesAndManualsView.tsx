@@ -423,11 +423,13 @@ export const ProfilesAndManualsView: React.FC<ProfilesAndManualsViewProps> = ({
                     className={`flex-1 py-2.5 px-3 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
                       isCurrent
                         ? 'bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/40'
-                        : 'bg-[#D4FF00] hover:bg-[#e1ff33] text-[#0A0B0E]'
+                        : 'bg-[#1C202B] hover:bg-[#252B3B] text-[#F3F4F6] border border-[#2E3548]'
                     }`}
                   >
                     <UserCheck className="w-4 h-4" />
-                    {isCurrent ? 'Currently Active' : 'Switch to Profile'}
+                    {isCurrent
+                      ? 'Authenticated Session'
+                      : 'Sign Out to Authenticate'}
                   </button>
 
                   <button
@@ -464,7 +466,7 @@ export const ProfilesAndManualsView: React.FC<ProfilesAndManualsViewProps> = ({
 
           <div className="flex flex-wrap items-center gap-2.5">
             <a
-              href={`/manuals/${activeManual.pdfFileName}`}
+              href={`./manuals/${activeManual.pdfFileName}`}
               download={activeManual.pdfFileName}
               onClick={(e) => {
                 e.preventDefault();
