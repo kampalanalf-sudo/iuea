@@ -1,10 +1,30 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+// The repository-root HTML is also the entry point for branch-based GitHub
+// Pages deployments. It points at committed production assets in /docs so it
+// works on both github.io and a custom domain without running a Vite server.
+// Replace those tags only when Vite serves or builds the source application.
+function viteSourceEntry(): Plugin {
+  const staticStylesheet = '<link data-pages-static rel="stylesheet" href="./docs/assets/app-bundle.css" />';
+  const staticScript = '<script data-pages-static type="module" src="./docs/assets/app-bundle.js"></script>';
+  return {
+    name: 'tank-vite-source-entry',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        return html
+          .replace(`    ${staticStylesheet}\n`, '')
+          .replace(staticScript, '<script type="module" src="/src/main.tsx"></script>');
+      },
+    },
+  };
+}
+
 export default defineConfig({
   base: './',
-  plugins: [react(), tailwindcss()],
+  plugins: [viteSourceEntry(), react(), tailwindcss()],
   build: {
     rollupOptions: {
       output: {

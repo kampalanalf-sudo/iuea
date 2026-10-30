@@ -1,6 +1,8 @@
 # TANK DISTRIBUTION — Online Music Distribution, DDEX Delivery & Royalty Engine
 
-**Tank Distribution** is an industrial-grade independent music distribution, master catalog registry, and automated royalty splits platform built with **React 19 + TypeScript + Tailwind CSS**, backed by **Supabase (`@supabase/supabase-js` PostgreSQL, Auth & Storage)** and **GitHub Actions CI/CD**.
+**Tank Distribution** is a music distribution platform prototype built with **React 19 + TypeScript + Tailwind CSS**, with optional Supabase integration and GitHub Actions CI.
+
+> **Security status — prototype only.** The current sign-in checks an email and role in the browser without verifying ownership, and client-side role checks do not protect data. The included database migration grants public read/write access to several tables, and the DSP panel stores credentials in the browser. Do not use real account, financial, catalog, or API-secret data until verified authentication, restrictive server-side permissions and secure secret handling are implemented. GitHub Pages is public static hosting, not an access-control layer.
 
 ---
 
@@ -24,21 +26,27 @@
    - Execute instant royalty withdrawals, inspect per-release collaborator split math, and export official **CSV Royalty Statements**.
 
 5. **Supabase & GitHub Cloud Studio**
-   - Full `@supabase/supabase-js` integration (`src/lib/supabase.ts` & `src/services/distributionService.ts`).
-   - Connect any live Supabase project directly in the UI or via `.env`, test table connectivity, sync your local catalog to Supabase with 1 click, and authenticate via GitHub OAuth.
+   - Optional `@supabase/supabase-js` connection and catalog sync code lives in `src/lib/supabase.ts` and `src/services/distributionService.ts`.
+   - The current login is not backed by verified Supabase Auth; the database policies and credential handling must be secured before use with real data.
 
 ---
 
 ## Supabase Database Setup
 
-1. Create a new project in [Supabase](https://supabase.com).
-2. Open the **SQL Editor** in your Supabase dashboard and run [`supabase/migrations/001_tank_distribution_schema.sql`](./supabase/migrations/001_tank_distribution_schema.sql).
-3. Copy `.env.example` to `.env` and add your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (or paste them directly inside the in-app **Supabase & GitHub** tab).
+The current migration is **not safe for production**: it includes public read/write policies. Before connecting real data, implement Supabase Auth, restrictive row-level security, server-side role checks and secure server-side storage of integration secrets. Do not apply the existing migration to a production database as-is.
+
+For an isolated test project only, the client can be configured with a Supabase URL and a publishable/anon key through `.env` or the in-app cloud panel. Never put a Supabase service-role key or third-party secret into a browser environment variable.
 
 ```bash
 npm install
 npm run dev
 ```
+
+---
+
+## GitHub Pages custom domain
+
+The build is prepared for `tankmusicdistribution.site`, including `CNAME` files and a root/static entry point. See [DOMAIN_SETUP.md](./DOMAIN_SETUP.md) for domain verification, GitHub Pages, Namecheap DNS and HTTPS steps. The Pages source must contain the built changes; the `CNAME` files alone do not set up DNS.
 
 ---
 

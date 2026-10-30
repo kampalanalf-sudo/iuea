@@ -5,7 +5,6 @@ import {
   Lock,
   LogIn,
   Mail,
-  ShieldCheck,
   UserPlus,
 } from 'lucide-react';
 import { PROFILE_CATEGORY_META } from '../data/userProfiles';
@@ -58,7 +57,7 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
       setErrorMsg(
-        'Access denied: Please enter your registered email address to authenticate.'
+        'Access denied: Please enter the email address for your preview profile.'
       );
       return;
     }
@@ -102,7 +101,7 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
     );
     if (exists) {
       setErrorMsg(
-        'An account with this email already exists. Please authenticate via Sign In.'
+        'An account with this email already exists. Please use Sign In.'
       );
       return;
     }
@@ -189,7 +188,7 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
     setRegArtists('');
     setAuthMode('signin');
     setInfoMsg(
-      `Account registered for ${newAccount.name}. Please authenticate with your registered email and role category below.`
+      `Account registered for ${newAccount.name}. Please sign in with your email and role category below.`
     );
   };
 
@@ -209,14 +208,14 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
               TANK DISTRIBUTION
             </div>
             <div className="text-[10px] font-mono-tech text-[#D4FF00] tracking-widest mt-0.5">
-              AUTHENTICATED ACCESS GATEWAY
+              WORKSPACE PREVIEW
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#141720] border border-[#2A3042] text-xs font-mono-tech text-[#10B981]">
-          <Lock className="w-3.5 h-3.5" />
-          <span>AUTHENTICATION REQUIRED</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#141720] border border-[#2A3042] text-xs font-mono-tech text-amber-400">
+          <AlertCircle className="w-3.5 h-3.5" />
+          <span>PREVIEW ONLY</span>
         </div>
       </header>
 
@@ -227,17 +226,25 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D4FF00]/10 border border-[#D4FF00]/30 text-[#D4FF00] text-xs font-mono-tech font-semibold">
               <Lock className="w-3.5 h-3.5" />
-              PROTECTED DISTRIBUTION WORKSPACE
+              DISTRIBUTION WORKSPACE PREVIEW
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-[#F3F4F6] tracking-tight">
-              AUTHENTICATE TO ACCESS PLATFORM
+              EXPLORE THE WORKSPACE PREVIEW
             </h1>
             <p className="text-sm text-[#9CA3AF] max-w-2xl leading-relaxed">
-              Access to catalog distribution, release builders, royalty split
-              ledgers, and role PDF navigation manuals is strictly restricted to
-              authenticated users. Select your role category and sign in with
-              your registered email address.
+              Select a role and sign in to explore the catalog, release builder,
+              royalty views, and navigation manuals in this preview.
             </p>
+          </div>
+
+          <div role="alert" className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+            <div>
+              <strong>Preview only: identity is not verified.</strong>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
+                Do not enter real personal, payment, account, or confidential information.
+              </p>
+            </div>
           </div>
 
           {/* 5 Role Categories Overview (No Direct Entry, No Account Email Exposure) */}
@@ -280,14 +287,16 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                     </div>
 
                     <p className="mt-2.5 text-xs text-[#9CA3AF] leading-relaxed">
-                      {catMeta.description}
+                      {cat === 'tank_admin'
+                        ? 'Manage the platform, user profiles, and release approvals.'
+                        : catMeta.description}
                     </p>
                   </div>
 
                   <div className="mt-3 pt-2.5 border-t border-[#1E2330] flex items-center justify-between text-[10px] font-mono-tech text-[#6B7280]">
                     <span className="flex items-center gap-1 text-[#10B981]">
                       <Lock className="w-3 h-3" />
-                      Verified Session Required
+                      Preview session
                     </span>
                     {isSelectedRole && (
                       <span className="text-[#D4FF00] font-bold">
@@ -359,11 +368,10 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                 <form onSubmit={handleSignInSubmit} className="space-y-5">
                   <div>
                     <h2 className="text-xl font-extrabold text-[#F3F4F6]">
-                      Authenticate Session
+                      Sign In to Preview
                     </h2>
                     <p className="text-xs text-[#9CA3AF] mt-1">
-                      Select your registered role category and enter your email
-                      address to verify your identity.
+                      Select the role and email used for your preview profile.
                     </p>
                   </div>
 
@@ -417,13 +425,13 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                     className="w-full py-3.5 px-5 rounded-xl bg-[#D4FF00] hover:bg-[#e1ff33] text-[#0A0B0E] font-extrabold text-sm flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(212,255,0,0.28)] transition-all cursor-pointer"
                   >
                     <LogIn className="w-4 h-4" />
-                    AUTHENTICATE & SIGN IN
+                    SIGN IN TO PREVIEW
                   </button>
 
                   <div className="pt-4 border-t border-[#232836] flex items-center justify-between text-xs text-[#9CA3AF]">
                     <span className="flex items-center gap-1.5">
                       <Lock className="w-3.5 h-3.5 text-[#10B981]" />
-                      Signed session token guard
+                      Local preview session
                     </span>
                     <button
                       type="button"
@@ -445,8 +453,7 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
                       Register Platform Account
                     </h2>
                     <p className="text-xs text-[#9CA3AF] mt-1">
-                      Register your profile details first, then authenticate on
-                      the Sign In screen.
+                      Register a preview profile, then sign in on the Sign In screen.
                     </p>
                   </div>
 
@@ -562,14 +569,13 @@ export const LoginGatewayView: React.FC<LoginGatewayViewProps> = ({
       {/* Bottom Footer Bar */}
       <footer className="relative z-10 py-4 px-6 lg:px-12 border-t border-[#232836] bg-[#0A0B0E]/90 text-xs text-[#6B7280] flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-[#10B981]" />
+          <AlertCircle className="w-4 h-4 text-[#FBBF24]" />
           <span>
-            TANK DISTRIBUTION • Mandatory Session Authentication • Role-Based
-            Access Control
+            TANK DISTRIBUTION • Workspace preview
           </span>
         </div>
         <div className="flex items-center gap-4 font-mono-tech text-[11px]">
-          <span>Unauthenticated Access Blocked</span>
+          <span>Identity verification is not active</span>
         </div>
       </footer>
     </div>
