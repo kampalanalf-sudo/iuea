@@ -47,6 +47,10 @@ import {
   updateReleaseStatus,
 } from './services/distributionService';
 import {
+  dispatchReleaseToWebhook,
+  loadDspIntegrationConfig,
+} from './services/dspIntegrationService';
+import {
   ArtistProfile,
   DeliveryStatus,
   PayoutRequest,
@@ -57,6 +61,11 @@ import {
   UserProfileAccount,
 } from './types/distribution';
 import { audioEngine } from './utils/audioEngine';
+import {
+  clearVerifiedAuthSession,
+  createVerifiedAuthSession,
+  verifyActiveProfileFromSession,
+} from './utils/authSession';
 import { downloadProfileManualPdf } from './utils/pdfManualGenerator';
 
 type NavView =
@@ -68,8 +77,6 @@ type NavView =
   | 'supabase-github';
 
 const LS_USER_PROFILES = 'tank_dist_user_profiles_v3';
-const LS_ACTIVE_PROFILE_ID = 'tank_dist_active_profile_id_v3';
-const LS_IS_AUTHENTICATED = 'tank_dist_is_authenticated_v3';
 
 export function App() {
   const [activeView, setActiveView] = useState<NavView>('overview');
@@ -100,29 +107,15 @@ export function App() {
     return INITIAL_USER_PROFILES;
   });
 
-  const [activeUserProfileId, setActiveUserProfileId] = useState<string>(() => {
-    try {
-      return (
-        localStorage.getItem(LS_ACTIVE_PROFILE_ID) ||
-        INITIAL_USER_PROFILES[0].id
-      );
-    } catch {
-      return INITIAL_USER_PROFILES[0].id;
-    }
-  });
+  // Verified Authentication Session State (Strictly null until authenticated)
+  const [authenticatedProfile, setAuthenticatedProfile] =
+    useState<UserProfileAccount | null>(() => {
+      const verified = verifyActiveProfileFromSession(userProfiles);
+      return verified ? verified.profile : null;
+    });
 
-  // Authentication Session Gate (Defaults to false so users see the Login Facility first)
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(LS_IS_AUTHENTICATED) === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const activeUserProfile =
-    userProfiles.find((p) => p.id === activeUserProfileId) || userProfiles[0];
-  const isAdmin = activeUserProfile.canSeeTechDetails;
+  const isAuthenticated = authenticatedProfile !== null;
+  const isAdmin = Boolean(authenticatedProfile?.canSeeTechDetails);
 
   const [supabaseState, setSupabaseState] = useState<SupabaseConfigState>({
     url: '',
@@ -146,10 +139,33 @@ export function App() {
     setProfile(data.profile);
   }, []);
 
+  // Only load distribution data AFTER session authentication is verified
   useEffect(() => {
+    if (!authenticatedProfile) return;
     loadData();
     testSupabaseConnection().then(setSupabaseState);
-  }, [loadData]);
+  }, [authenticatedProfile, loadData]);
+
+  // Continuous Session Integrity Watchdog
+  useEffect(() => {
+    const verifyIntegrity = () => {
+      const verified = verifyActiveProfileFromSession(userProfiles);
+      if (!verified && authenticatedProfile) {
+        audioEngine.pause();
+        setAuthenticatedProfile(null);
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    window.addEventListener('focus', verifyIntegrity);
+    window.addEventListener('storage', verifyIntegrity);
+    const timer = window.setInterval(verifyIntegrity, 15000);
+    return () => {
+      window.removeEventListener('focus', verifyIntegrity);
+      window.removeEventListener('storage', verifyIntegrity);
+      window.clearInterval(timer);
+    };
+  }, [userProfiles, authenticatedProfile]);
 
   // If user switches to a non-admin profile while on the admin-only 'supabase-github' view, redirect to 'overview'
   useEffect(() => {
@@ -159,14 +175,8 @@ export function App() {
   }, [isAdmin, activeView]);
 
   const handleSelectUserProfile = (nextProf: UserProfileAccount) => {
-    setActiveUserProfileId(nextProf.id);
-    setIsAuthenticated(true);
-    try {
-      localStorage.setItem(LS_ACTIVE_PROFILE_ID, nextProf.id);
-      localStorage.setItem(LS_IS_AUTHENTICATED, 'true');
-    } catch {
-      // ignore
-    }
+    createVerifiedAuthSession(nextProf);
+    setAuthenticatedProfile(nextProf);
     setProfileDropdownOpen(false);
     const meta = PROFILE_CATEGORY_META[nextProf.category];
     showToast(
@@ -186,18 +196,24 @@ export function App() {
     } catch {
       // ignore
     }
-    handleSelectUserProfile(newProf);
+    showToast(
+      `Registered profile for ${newProf.name}. Authenticate via Sign In to access this account.`
+    );
   };
 
   const handleSignOut = () => {
     audioEngine.pause();
-    setIsAuthenticated(false);
+    clearVerifiedAuthSession();
+    setAuthenticatedProfile(null);
     setProfileDropdownOpen(false);
-    try {
-      localStorage.setItem(LS_IS_AUTHENTICATED, 'false');
-    } catch {
-      // ignore
+  };
+
+  const handleSwitchProfileRequiresAuth = (targetProf: UserProfileAccount) => {
+    if (authenticatedProfile && targetProf.id === authenticatedProfile.id) {
+      setProfileDropdownOpen(false);
+      return;
     }
+    handleSignOut();
   };
 
   const handlePlayTrack = (track: TrackItem, release: ReleaseItem) => {
@@ -208,9 +224,19 @@ export function App() {
     const updated = await createNewRelease(newRel);
     setReleases(updated);
     setActiveView('overview');
-    showToast(
-      `Release "${newRel.title}" (${newRel.upcCode}) deployed to ${newRel.storesSelected.length} streaming stores!`
-    );
+
+    const dspCfg = loadDspIntegrationConfig();
+    if (dspCfg.autoDispatchOnRelease && dspCfg.deliveryWebhookUrl.trim()) {
+      const { log } = await dispatchReleaseToWebhook(newRel, dspCfg);
+      showToast(
+        `Release "${newRel.title}" (${newRel.upcCode}) deployed & dispatched via ${dspCfg.aggregatorProvider.toUpperCase()} webhook (${log.httpStatus})!`
+      );
+    } else {
+      showToast(
+        `Release "${newRel.title}" (${newRel.upcCode}) deployed to ${newRel.storesSelected.length} streaming stores!`
+      );
+    }
+
     if (newRel.tracks[0]) {
       audioEngine.playTrack(
         newRel.tracks[0],
@@ -259,15 +285,16 @@ export function App() {
 
   // Filter releases by role scope if applicable
   const scopedReleases = React.useMemo(() => {
+    if (!authenticatedProfile) return [];
     if (
-      activeUserProfile.category === 'tank_admin' ||
-      activeUserProfile.category === 'label_exec' ||
-      activeUserProfile.associatedArtists.includes('ALL CATALOG ARTISTS')
+      authenticatedProfile.category === 'tank_admin' ||
+      authenticatedProfile.category === 'label_exec' ||
+      authenticatedProfile.associatedArtists.includes('ALL CATALOG ARTISTS')
     ) {
       return releases;
     }
     const matched = releases.filter((r) => {
-      const artistMatch = activeUserProfile.associatedArtists.some(
+      const artistMatch = authenticatedProfile.associatedArtists.some(
         (assoc) =>
           r.primaryArtist.toLowerCase().includes(assoc.toLowerCase()) ||
           r.featuredArtists.toLowerCase().includes(assoc.toLowerCase())
@@ -275,15 +302,15 @@ export function App() {
       const splitMatch = r.splits.some((s) =>
         s.collaboratorName
           .toLowerCase()
-          .includes(activeUserProfile.name.toLowerCase())
+          .includes(authenticatedProfile.name.toLowerCase())
       );
       return artistMatch || splitMatch;
     });
     return matched.length > 0 ? matched : releases;
-  }, [releases, activeUserProfile]);
+  }, [releases, authenticatedProfile]);
 
-  // Show Login Gateway when not signed in
-  if (!isAuthenticated) {
+  // STRICT AUTHENTICATION GATE: Block all workspace access unless a verified session is active
+  if (!isAuthenticated || !authenticatedProfile) {
     return (
       <LoginGatewayView
         profiles={userProfiles}
@@ -292,6 +319,8 @@ export function App() {
       />
     );
   }
+
+  const activeUserProfile = authenticatedProfile;
 
   const navItems: {
     id: NavView;
@@ -577,7 +606,7 @@ export function App() {
                   <div className="absolute right-0 mt-2 w-80 rounded-xl bg-[#12151E] border border-[#2E3548] shadow-2xl py-2 z-50">
                     <div className="px-3.5 py-2 border-b border-[#232836] flex items-center justify-between">
                       <span className="text-[10px] font-mono-tech uppercase text-[#9CA3AF]">
-                        QUICK SWITCH ACCOUNT ({userProfiles.length})
+                        ACTIVE SESSION ACCOUNT
                       </span>
                       <button
                         onClick={() => {
@@ -586,53 +615,37 @@ export function App() {
                         }}
                         className="text-[10px] font-mono-tech text-[#D4FF00] hover:underline cursor-pointer"
                       >
-                        All Profiles →
+                        Role Manuals →
                       </button>
                     </div>
-                    <div className="max-h-64 overflow-y-auto divide-y divide-[#1C202B]">
-                      {userProfiles.map((prof) => {
-                        const isSelected = prof.id === activeUserProfile.id;
-                        const catMeta = PROFILE_CATEGORY_META[prof.category];
-                        return (
-                          <button
-                            key={prof.id}
-                            onClick={() => handleSelectUserProfile(prof)}
-                            className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between hover:bg-[#1A1F2E] cursor-pointer transition-colors ${
-                              isSelected ? 'bg-[#181D2B]' : ''
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span
-                                className="w-7 h-7 rounded-lg flex items-center justify-center font-mono-tech font-bold text-[10px] text-[#0A0B0E] shrink-0"
-                                style={{ backgroundColor: prof.accentColor }}
-                              >
-                                {prof.avatarBadge}
-                              </span>
-                              <div className="min-w-0">
-                                <div className="text-xs font-bold text-[#F3F4F6] truncate">
-                                  {prof.name}
-                                </div>
-                                <div className="text-[10px] font-mono-tech text-[#9CA3AF] truncate">
-                                  {catMeta.shortBadge} • {prof.email}
-                                </div>
-                              </div>
-                            </div>
-                            {isSelected && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono-tech bg-[#D4FF00] text-[#0A0B0E] font-bold shrink-0">
-                                ACTIVE
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
+                    <div className="px-3.5 py-3 border-b border-[#1C202B] flex items-center justify-between bg-[#181D2B]">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className="w-7 h-7 rounded-lg flex items-center justify-center font-mono-tech font-bold text-[10px] text-[#0A0B0E] shrink-0"
+                          style={{ backgroundColor: activeUserProfile.accentColor }}
+                        >
+                          {activeUserProfile.avatarBadge}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-[#F3F4F6] truncate">
+                            {activeUserProfile.name}
+                          </div>
+                          <div className="text-[10px] font-mono-tech text-[#9CA3AF] truncate">
+                            {activeCategoryMeta.shortBadge} • {activeUserProfile.email}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono-tech bg-[#D4FF00] text-[#0A0B0E] font-bold shrink-0">
+                        AUTHENTICATED
+                      </span>
                     </div>
-                    <div className="px-3.5 pt-2 mt-1 border-t border-[#232836]">
+                    <div className="px-3.5 pt-2 mt-1">
                       <button
                         onClick={handleSignOut}
                         className="w-full py-2 rounded-lg bg-[#EF4444]/15 hover:bg-[#EF4444]/25 text-[#FCA5A5] text-xs font-mono-tech font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <LogOut className="w-3.5 h-3.5" />
-                        Sign Out to Login Screen
+                        Sign Out / Authenticate Another User
                       </button>
                     </div>
                   </div>
@@ -747,7 +760,7 @@ export function App() {
               <ProfilesAndManualsView
                 profiles={userProfiles}
                 activeProfile={activeUserProfile}
-                onSelectProfile={handleSelectUserProfile}
+                onSelectProfile={handleSwitchProfileRequiresAuth}
                 onCreateProfile={handleCreateUserProfile}
               />
             )}
@@ -759,6 +772,7 @@ export function App() {
                 profile={profile}
                 onUpdateProfile={handleUpdateProfile}
                 onRefreshData={loadData}
+                releases={releases}
               />
             )}
           </main>

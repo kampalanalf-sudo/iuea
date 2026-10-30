@@ -157,6 +157,28 @@ create table if not exists public.payout_requests (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.dsp_integrations (
+  id text primary key default 'global_dsp_config',
+  gs1_upc_prefix text default '',
+  isrc_country_code text default '',
+  isrc_registrant_code text default '',
+  ddex_party_id text default '',
+  spotify_client_id text default '',
+  spotify_client_secret text default '',
+  spotify_connected boolean default false,
+  youtube_api_key text default '',
+  youtube_cms_partner_id text default '',
+  youtube_connected boolean default false,
+  tiktok_client_key text default '',
+  tiktok_client_secret text default '',
+  aggregator_provider text default 'revelator',
+  delivery_webhook_url text default '',
+  delivery_api_key text default '',
+  webhook_signing_secret text default '',
+  auto_dispatch_on_release boolean default true,
+  updated_at timestamptz not null default now()
+);
+
 -- -----------------------------------------------------------------------------
 -- 7. STORAGE BUCKETS & ROW LEVEL SECURITY (RLS)
 -- -----------------------------------------------------------------------------

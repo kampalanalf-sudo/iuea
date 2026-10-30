@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tank Distribution</title>
+    <script>
+      // This single-page app keeps navigation in the workspace, not URL routes.
+      // Return unknown paths to its home without breaking GitHub project URLs.
+      var home = window.location.hostname.toLowerCase() === 'kampalanalf-sudo.github.io'
+        ? '/iuea/'
+        : '/';
+      window.location.replace(home + window.location.search + window.location.hash);
+    </script>
+  </head>
+  <body>
+    <p>Returning to Tank Distribution&hellip; <a href="/">Home</a></p>
+  </body>
+</html>
